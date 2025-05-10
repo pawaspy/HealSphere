@@ -126,7 +126,7 @@ const Chatbot = () => {
                   className={`flex ${message.isBot ? "justify-start" : "justify-end"}`}
                 >
                   <div className={`rounded-lg px-3 py-2 max-w-[80%] ${
-                    message.isBot ? "bg-muted" : "bg-primary text-primary-foreground"
+                    message.isBot ? "bg-muted" : "bg-primary/80 text-primary-foreground/90"
                   }`}>
                     {message.text}
                   </div>

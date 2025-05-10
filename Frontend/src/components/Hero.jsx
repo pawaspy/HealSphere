@@ -6,7 +6,7 @@ const Hero = () => {
   const navigate = useNavigate();
   
   return (
-    <section className="py-16 md:py-24 lg:py-32 relative overflow-hidden bg-gradient-to-b from-background to-background/5 dark:from-gray-900 dark:to-gray-900/90">
+    <section className="pt-8 md:pt-12 lg:pt-16 relative overflow-hidden bg-gradient-to-b from-background to-background/5 dark:from-gray-900 dark:to-gray-900/90">
       {/* Decorative elements */}
       <div className="absolute inset-0 z-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-primary/5 dark:bg-primary/10 blur-3xl" />
@@ -16,6 +16,11 @@ const Hero = () => {
       <div className="container mx-auto px-4 relative z-10">
         <div className="flex flex-col lg:flex-row items-center gap-12">
           <div className="flex-1 text-center lg:text-left">
+            <div className="inline-block bg-primary/10 dark:bg-primary/20 rounded-[2rem] px-5 py-2 mb-6">
+              <h2 className="text-xl md:text-2xl font-medium text-primary bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
+                Welcome to TeleHealth
+              </h2>
+            </div>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 tracking-tight dark:text-white">
               Healthcare Access Anytime, Anywhere
             </h1>
@@ -26,15 +31,15 @@ const Hero = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
               <Button 
                 size="lg" 
-                className="text-lg px-8"
+                className="text-lg px-8 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-0.5"
                 onClick={() => navigate("/start-consultation")}
               >
-                Start Consultation <ArrowRight className="ml-2" />
+                Start Consultation <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
               <Button 
                 variant="outline" 
                 size="lg" 
-                className="text-lg dark:text-white dark:border-gray-600"
+                className="text-lg dark:text-white dark:border-gray-600 hover:bg-primary/10 hover:text-primary transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-0.5"
                 onClick={() => navigate("/how-it-works")}
               >
                 How It Works
