@@ -12,7 +12,7 @@ import Payment from "./pages/Payment.jsx";
 import Consultation from "./pages/Consultation.jsx";
 import ConsultationSummary from "./pages/ConsultationSummary.jsx";
 import NotFound from "./pages/NotFound.jsx";
-import Chatbot from "./components/Chatbot.jsx";
+import MedicalChatbot from "./components/medical/MedicalChatbot.jsx";
 import Login from "./pages/Login.jsx";
 import Signup from "./pages/Signup.jsx";
 import DoctorDashboard from "./pages/DoctorDashboard.jsx";
@@ -48,7 +48,7 @@ const App = () => (
           <Route path="/book-appointment/:doctorUsername" element={<BookAppointment />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
-        <Chatbot />
+        <MedicalChatbot />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

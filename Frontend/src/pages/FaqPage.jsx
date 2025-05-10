@@ -37,7 +37,7 @@ const faqData = [
   {
     category: "payment",
     question: "How much does a consultation cost?",
-    answer: "Consultation fees vary by specialty. General consultations start at ₹499, while specialist consultations range from ₹799 to ₹1499. You can see the exact fee before confirming your appointment."
+    answer: "Consultation fees vary by specialty. General consultations start at ₹1, while specialist consultations range from ₹50 to ₹100. You can see the exact fee before confirming your appointment."
   },
   {
     category: "payment",

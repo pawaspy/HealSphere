@@ -23,6 +23,7 @@ type Appointment struct {
 	Notes           pgtype.Text `json:"notes"`
 	CreatedAt       time.Time   `json:"created_at"`
 	UpdatedAt       time.Time   `json:"updated_at"`
+	IsOnline        pgtype.Bool `json:"is_online"`
 }
 
 type Doctor struct {
@@ -49,4 +50,15 @@ type Patient struct {
 	Gender       string             `json:"gender"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+}
+
+type Prescription struct {
+	ID                int64       `json:"id"`
+	AppointmentID     int64       `json:"appointment_id"`
+	PrescriptionText  string      `json:"prescription_text"`
+	ConsultationNotes pgtype.Text `json:"consultation_notes"`
+	FeedbackRating    pgtype.Int4 `json:"feedback_rating"`
+	FeedbackComment   pgtype.Text `json:"feedback_comment"`
+	CreatedAt         time.Time   `json:"created_at"`
+	UpdatedAt         time.Time   `json:"updated_at"`
 }

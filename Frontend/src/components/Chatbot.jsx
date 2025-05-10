@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 const initialMessages = [
   {
     id: 1,
-    text: "👋 Hi there! I'm your CareFromAnywhere virtual assistant. How can I help you today?",
+    text: "👋 Hi there! I'm your TeleHealth virtual assistant. How can I help you with your healthcare needs today?",
     isBot: true,
   },
 ];
@@ -56,11 +56,11 @@ const Chatbot = () => {
       } else if (lowerInput.includes("special")) {
         botResponse = "We offer consultations in Family Medicine, Cardiology, Dermatology, Pediatrics, Psychiatry, and more. You can view the full list on our Specialties page.";
       } else if (lowerInput.includes("cost") || lowerInput.includes("price") || lowerInput.includes("fee")) {
-        botResponse = "Consultation costs vary by specialty. General consultations start at $49, while specialist consultations range from $79 to $149. Insurance coverage is available for most plans.";
+        botResponse = "Consultation costs vary by specialty. General consultations start at ₹1, while specialist consultations range from ₹50 to ₹100. Insurance coverage is available for most plans.";
       } else if (lowerInput.includes("secure") || lowerInput.includes("privacy") || lowerInput.includes("data")) {
         botResponse = "Your privacy is our priority. All consultations are encrypted and HIPAA-compliant. We never share your health information without your explicit consent.";
       } else {
-        botResponse = "Thank you for your message. For specific medical advice, I recommend scheduling a consultation with one of our healthcare professionals who can provide personalized care.";
+        botResponse = "Thank you for your question. For personalized medical advice, we recommend scheduling a consultation with one of our healthcare professionals who can provide tailored care for your specific needs.";
       }
 
       setMessages((prev) => [
@@ -96,14 +96,14 @@ const Chatbot = () => {
   return (
     <>
       {/* Chat button */}
-      <div className="fixed bottom-6 right-6 z-50">
+      <div className="fixed bottom-6 right-6 z-40">
         {isOpen ? (
-          <Button variant="destructive" size="icon" onClick={toggleChat}>
-            <X className="h-5 w-5" />
+          <Button variant="destructive" size="lg" onClick={toggleChat}>
+            <X className="h-6 w-6" />
           </Button>
         ) : (
-          <Button className="rounded-full shadow-lg" onClick={toggleChat}>
-            <MessageCircle className="h-5 w-5 mr-2" />
+          <Button className="rounded-full shadow-lg px-5 py-6" size="lg" onClick={toggleChat}>
+            <MessageCircle className="h-6 w-6 mr-2" />
             Chat with us
           </Button>
         )}
@@ -111,7 +111,7 @@ const Chatbot = () => {
 
       {/* Chat window */}
       {isOpen && (
-        <Card className="fixed bottom-20 right-6 w-80 md:w-96 z-50 shadow-xl">
+        <Card className="fixed bottom-20 right-6 w-96 md:w-[450px] z-40 shadow-xl">
           <CardHeader className="bg-primary text-primary-foreground">
             <CardTitle className="flex items-center text-lg">
               <Bot className="h-5 w-5 mr-2" />
@@ -119,7 +119,7 @@ const Chatbot = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="h-72 overflow-y-auto p-4 space-y-4">
+            <div className="h-96 overflow-y-auto p-4 space-y-4">
               {messages.map((message) => (
                 <div 
                   key={message.id} 

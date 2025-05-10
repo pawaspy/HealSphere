@@ -126,6 +126,7 @@ func (server *Server) setupRouter() {
 	appointmentRoutes.GET("/:id", server.getAppointment)
 	appointmentRoutes.PATCH("/:id/status", server.updateAppointmentStatus)
 	appointmentRoutes.PATCH("/:id/notes", server.addAppointmentNotes)
+	appointmentRoutes.PATCH("/:id/online", server.updateAppointmentOnlineStatus)
 	appointmentRoutes.DELETE("/:id", server.deleteAppointment)
 
 	// Patient appointment routes for listing appointments
@@ -140,6 +141,17 @@ func (server *Server) setupRouter() {
 	doctorAppointmentRoutes.GET("", server.listDoctorAppointments)
 	doctorAppointmentRoutes.GET("/today", server.listTodayDoctorAppointments)
 	doctorAppointmentRoutes.GET("/upcoming", server.listUpcomingDoctorAppointments)
+
+	// Chatbot API endpoint - can be used without authentication
+	router.POST("/api/chat", server.handleChatRequest)
+
+	// Prescription routes
+	prescriptionRoutes := router.Group("/prescriptions").Use(authMiddleware(server.tokenMaker))
+	prescriptionRoutes.POST("", server.createPrescription)
+	prescriptionRoutes.GET("/:appointment_id", server.getPrescription)
+	prescriptionRoutes.GET("/:appointment_id/exists", server.checkPrescriptionExists)
+	prescriptionRoutes.PUT("/:appointment_id", server.updatePrescription)
+	prescriptionRoutes.POST("/:appointment_id/feedback", server.submitFeedback)
 
 	server.router = router
 }

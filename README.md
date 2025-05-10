@@ -120,18 +120,27 @@ A modern telehealth platform that connects patients with doctors for virtual con
 - Delete account
 - Browse and search for doctors
 - Book appointments
+- Filter appointments by status (upcoming, completed, all)
+- Join video calls initiated by doctors
+- View and download prescriptions
 
 ### Doctor Features
 - Registration and login
 - View and update professional profile
 - Delete account
 - Manage appointments
+- Filter appointments by status (upcoming, completed, all)
+- Initiate video calls with patients
+- Write and manage prescriptions
+- View patient history and details
 
 ### Common Features
 - Secure authentication
 - Profile management
 - Real-time validation
 - Responsive UI design
+- Smart appointment management that hides completed appointments by default
+- Video consultation capabilities
 
 ## Development
 
@@ -175,3 +184,19 @@ The application uses PASETO tokens for authentication. When a user logs in, they
 ## Frontend-Backend Integration
 
 The frontend communicates with the backend through the API utilities in `src/utils/api.js`. This provides a consistent interface for all API calls and handles authentication tokens automatically.
+
+## Video Consultation Workflow
+
+The platform implements a structured video consultation workflow:
+
+1. **Appointment Booking**: Patients book appointments with doctors, specifying whether they prefer online or in-person consultation.
+
+2. **Doctor-Initiated Calls**: Only doctors can initiate video calls for online appointments. This ensures consultations happen at scheduled times and prevents unauthorized access.
+
+3. **Patient Join**: Once a doctor initiates a call, the patient's dashboard updates to show an active "Join Video Call" button. Before this, patients see a disabled "Waiting for Doctor" button.
+
+4. **Completed Appointments**: After consultation, appointments are marked as "completed" and automatically filtered out from the default dashboard view. Users can still access completed appointments through the status filter.
+
+5. **Post-Consultation**: Doctors can write prescriptions for completed appointments, which patients can view and download from their dashboard.
+
+This workflow ensures a clear process for telehealth consultations while maintaining security and proper medical protocols.

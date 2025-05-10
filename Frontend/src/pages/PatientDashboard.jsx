@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -25,7 +25,8 @@ import {
   Phone,
   Star,
   TicketCheck,
-  Loader2
+  Loader2,
+  Download
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -44,8 +45,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { doctorsApi, appointmentsApi } from "@/utils/api";
+import { doctorsApi, appointmentsApi, patientsApi, prescriptionsApi } from "@/utils/api";
 import AnimatedAvatar from "@/components/AnimatedAvatar";
+import { jsPDF } from "jspdf";
 
 const PatientDashboard = () => {
   const [activeTab, setActiveTab] = useState("appointments");
@@ -58,8 +60,12 @@ const PatientDashboard = () => {
   const [isDoctorDialogOpen, setIsDoctorDialogOpen] = useState(false);
   const [appointments, setAppointments] = useState([]);
   const [isLoadingAppointments, setIsLoadingAppointments] = useState(false);
+  const [appointmentStatusFilter, setAppointmentStatusFilter] = useState("upcoming");
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [isAppointmentDialogOpen, setIsAppointmentDialogOpen] = useState(false);
+  const [prescriptions, setPrescriptions] = useState([]);
+  const [isLoadingPrescriptions, setIsLoadingPrescriptions] = useState(false);
+  const [prescriptionSearchQuery, setPrescriptionSearchQuery] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -161,7 +167,27 @@ const PatientDashboard = () => {
     }
   }, [location, searchDoctors]);
 
-  // Fetch patient profile data
+  // Fetch patient profile data function - moved outside of useEffect and wrapped in useCallback
+  const fetchPatientProfile = useCallback(async () => {
+    try {
+      const userData = await fetch("/api/patients/profile", {
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        }
+      }).then(res => res.json());
+      
+      setPatientData(userData);
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      // Fallback to username from localStorage if API fails
+      setPatientData(prev => ({
+        ...prev,
+        name: localStorage.getItem("username") || "User"
+      }));
+    }
+  }, []);
+
+  // Check authentication and fetch profile
   useEffect(() => {
     // Check if user is logged in
     const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
@@ -170,80 +196,23 @@ const PatientDashboard = () => {
       return;
     }
 
-    const fetchPatientProfile = async () => {
-      try {
-        const userData = await fetch("/api/patients/profile", {
-          headers: {
-            "Authorization": `Bearer ${localStorage.getItem("token")}`
-          }
-        }).then(res => res.json());
-        
-        setPatientData(userData);
-      } catch (error) {
-        console.error("Error fetching profile:", error);
-        // Fallback to username from localStorage if API fails
-        setPatientData(prev => ({
-          ...prev,
-          name: localStorage.getItem("username") || "User"
-        }));
-      }
-    };
-    
     fetchPatientProfile();
-  }, [navigate]);
+  }, [navigate, fetchPatientProfile]);
 
-  // Fetch appointments
-  useEffect(() => {
-    const fetchAppointments = async () => {
-      if (activeTab === "appointments") {
-        setIsLoadingAppointments(true);
-        try {
-          // Get all appointments for the current patient
-          const response = await appointmentsApi.listPatientAppointments();
-          
-          // Make sure response is an array before setting state
-          if (Array.isArray(response)) {
-            console.log("Appointments loaded successfully:", response);
-            setAppointments(response);
-          } else {
-            console.warn("Invalid appointments data format. Expected array but got:", typeof response);
-            // Try a direct fetch as a fallback
-            try {
-              const token = localStorage.getItem('token');
-              const directResponse = await fetch('/patients/appointments', {
-                headers: {
-                  'Authorization': `Bearer ${token}`
-                }
-              });
-              
-              if (directResponse.ok) {
-                const data = await directResponse.json();
-                if (Array.isArray(data)) {
-                  console.log("Appointments loaded via direct fetch:", data);
-                  setAppointments(data);
-                } else {
-                  console.warn("Direct fetch also returned invalid format:", typeof data);
-                  setAppointments([]);
-                }
-              } else {
-                console.warn("Direct fetch failed with status:", directResponse.status);
-                setAppointments([]);
-              }
-            } catch (directError) {
-              console.error("Direct fetch error:", directError);
-              setAppointments([]);
-            }
-          }
-        } catch (error) {
-          console.error("Error fetching appointments:", error);
-          // Don't show toast for JSON parsing errors
-          if (!error.toString().includes("JSON")) {
-            toast({
-              title: "Error",
-              description: "Failed to load appointments. Please try again.",
-              variant: "destructive",
-            });
-          }
+  // Fetch appointments function - moved outside of useEffect and wrapped in useCallback
+  const fetchAppointments = useCallback(async () => {
+    if (activeTab === "appointments") {
+      setIsLoadingAppointments(true);
+      try {
+        // Get all appointments for the current patient
+        const response = await appointmentsApi.listPatientAppointments();
+        
+        // Make sure response is an array before setting state
+        if (Array.isArray(response)) {
+          console.log("Appointments loaded successfully:", response);
+          setAppointments(response);
+        } else {
+          console.warn("Invalid appointments data format. Expected array but got:", typeof response);
           // Try a direct fetch as a fallback
           try {
             const token = localStorage.getItem('token');
@@ -256,37 +225,85 @@ const PatientDashboard = () => {
             if (directResponse.ok) {
               const data = await directResponse.json();
               if (Array.isArray(data)) {
-                console.log("Appointments loaded via direct fetch after error:", data);
+                console.log("Appointments loaded via direct fetch:", data);
                 setAppointments(data);
               } else {
-                console.warn("Direct fetch after error returned invalid format:", typeof data);
+                console.warn("Direct fetch also returned invalid format:", typeof data);
                 setAppointments([]);
               }
             } else {
-              console.warn("Direct fetch after error failed with status:", directResponse.status);
+              console.warn("Direct fetch failed with status:", directResponse.status);
               setAppointments([]);
             }
           } catch (directError) {
-            console.error("Direct fetch error after initial error:", directError);
+            console.error("Direct fetch error:", directError);
             setAppointments([]);
           }
-        } finally {
-          setIsLoadingAppointments(false);
         }
+      } catch (error) {
+        console.error("Error fetching appointments:", error);
+        // Don't show toast for JSON parsing errors
+        if (!error.toString().includes("JSON")) {
+          toast({
+            title: "Error",
+            description: "Failed to load appointments. Please try again.",
+            variant: "destructive",
+          });
+        }
+        // Try a direct fetch as a fallback
+        try {
+          const token = localStorage.getItem('token');
+          const directResponse = await fetch('/patients/appointments', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (directResponse.ok) {
+            const data = await directResponse.json();
+            if (Array.isArray(data)) {
+              console.log("Appointments loaded via direct fetch after error:", data);
+              setAppointments(data);
+            } else {
+              console.warn("Direct fetch after error returned invalid format:", typeof data);
+              setAppointments([]);
+            }
+          } else {
+            console.warn("Direct fetch after error failed with status:", directResponse.status);
+            setAppointments([]);
+          }
+        } catch (directError) {
+          console.error("Direct fetch error after initial error:", directError);
+          setAppointments([]);
+        }
+      } finally {
+        setIsLoadingAppointments(false);
       }
-    };
-
-    fetchAppointments();
+    }
   }, [activeTab, toast]);
+
+  // Fetch appointments when activeTab changes
+  useEffect(() => {
+    fetchAppointments();
+  }, [fetchAppointments]);
   
-  // Filter appointments based on search query
+  // Filter appointments based on search query and status filter
   const filteredAppointments = appointments.filter(appointment => 
-    (appointment.doctor_name && appointment.doctor_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (appointmentStatusFilter === "all" || appointment.status === appointmentStatusFilter) &&
+    ((appointment.doctor_name && appointment.doctor_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
     (appointment.specialty && appointment.specialty.toLowerCase().includes(searchQuery.toLowerCase())) ||
     (appointment.symptoms && appointment.symptoms.toLowerCase().includes(searchQuery.toLowerCase())) ||
     (appointment.appointment_date && appointment.appointment_date.includes(searchQuery.toLowerCase())) ||
-    (appointment.appointment_time && appointment.appointment_time.toLowerCase().includes(searchQuery.toLowerCase()))
+    (appointment.appointment_time && appointment.appointment_time.toLowerCase().includes(searchQuery.toLowerCase())))
   );
+  
+  // Calculate today's appointments using useMemo
+  const todayAppointments = useMemo(() => {
+    return appointments.filter(appointment => 
+      appointment.appointment_date === new Date().toISOString().split('T')[0] && 
+      appointment.status === "upcoming"
+    );
+  }, [appointments]);
   
   // Show notification for upcoming appointments
   useEffect(() => {
@@ -296,11 +313,6 @@ const PatientDashboard = () => {
       navigate("/login");
       return;
     }
-    
-    const todayAppointments = appointments.filter(appointment => 
-      appointment.appointment_date === new Date().toISOString().split('T')[0] && 
-      appointment.status === "upcoming"
-    );
     
     if (todayAppointments.length > 0) {
       setTimeout(() => {
@@ -373,6 +385,35 @@ const PatientDashboard = () => {
   };
   
   const joinVideoCall = (appointmentId) => {
+    // Check if the appointment is online and not completed
+    const appointment = appointments.find(a => a.id === appointmentId);
+    if (!appointment) {
+      toast({
+        title: "Error",
+        description: "Appointment not found.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (appointment.status === "completed") {
+      toast({
+        title: "Appointment Completed",
+        description: "This appointment has been completed. You cannot join the call.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!appointment.is_online) {
+      toast({
+        title: "Call Not Started",
+        description: "Please wait for the doctor to start the call.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     navigate(`/video-call/${appointmentId}`);
   };
   
@@ -397,7 +438,261 @@ const PatientDashboard = () => {
       navigate(`/book-appointment/${selectedDoctor.username}`);
     }
   };
+
+  // Fetch prescriptions for completed appointments
+  const fetchPrescriptions = async () => {
+    setIsLoadingPrescriptions(true);
+    try {
+      // First get all completed appointments
+      const completedAppointments = await appointmentsApi.listCompletedPatientAppointments();
+      
+      // For each completed appointment, try to fetch the prescription
+      const prescriptionsData = [];
+      
+      for (const appointment of completedAppointments) {
+        try {
+          // Check if prescription exists
+          const exists = await prescriptionsApi.checkPrescriptionExists(appointment.id);
+          if (exists) {
+            const prescription = await prescriptionsApi.getPrescription(appointment.id);
+            prescriptionsData.push({
+              ...prescription,
+              appointment_date: appointment.appointment_date,
+              appointment_time: appointment.appointment_time,
+              doctor_name: appointment.doctor_name,
+              specialty: appointment.specialty
+            });
+          }
+        } catch (error) {
+          console.error(`Error fetching prescription for appointment ${appointment.id}:`, error);
+        }
+      }
+      
+      setPrescriptions(prescriptionsData);
+    } catch (error) {
+      console.error("Error fetching prescriptions:", error);
+    } finally {
+      setIsLoadingPrescriptions(false);
+    }
+  };
+
+  // Download prescription as PDF
+  const downloadPrescription = (prescription) => {
+    // Create a new PDF document
+    const doc = new jsPDF();
+    
+    // Add header
+    doc.setFontSize(20);
+    doc.setTextColor(0, 51, 102);
+    doc.text("Medical Prescription", 105, 20, { align: 'center' });
+    
+    // Add separator line
+    doc.setLineWidth(0.5);
+    doc.setDrawColor(0, 51, 102);
+    doc.line(20, 25, 190, 25);
+    
+    // Doctor and appointment details
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'bold');
+    doc.text("Doctor Details", 20, 35);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Doctor: ${prescription.doctor_name}`, 20, 43);
+    doc.text(`Specialty: ${prescription.specialty}`, 20, 51);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.text("Appointment Details", 20, 65);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Date: ${prescription.appointment_date}`, 20, 73);
+    doc.text(`Time: ${prescription.appointment_time}`, 20, 81);
+    
+    // Add prescription
+    doc.setFont('helvetica', 'bold');
+    doc.text("Prescription", 20, 95);
+    doc.setFont('helvetica', 'normal');
+    
+    // Handle long prescription text
+    const splitPrescription = doc.splitTextToSize(prescription.prescription_text, 170);
+    doc.text(splitPrescription, 20, 103);
+    
+    // Calculate height of prescription text
+    const prescriptionHeight = splitPrescription.length * 7;
+    
+    // Add consultation notes if available
+    if (prescription.consultation_notes) {
+      doc.setFont('helvetica', 'bold');
+      doc.text("Consultation Notes", 20, 103 + prescriptionHeight + 10);
+      doc.setFont('helvetica', 'normal');
+      
+      const splitNotes = doc.splitTextToSize(prescription.consultation_notes, 170);
+      doc.text(splitNotes, 20, 103 + prescriptionHeight + 18);
+    }
+    
+    // Add footer
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text("This is an electronically generated prescription", 105, 280, { align: 'center' });
+    
+    // Save the PDF
+    const fileName = `prescription_${prescription.appointment_id}.pdf`;
+    doc.save(fileName);
+    
+    toast({
+      title: "Prescription Downloaded",
+      description: "Your prescription has been downloaded.",
+    });
+  };
+
+  // Filter prescriptions based on search query
+  const filteredPrescriptions = prescriptions.filter(prescription => 
+    prescription.doctor_name?.toLowerCase().includes(prescriptionSearchQuery.toLowerCase()) ||
+    prescription.specialty?.toLowerCase().includes(prescriptionSearchQuery.toLowerCase()) ||
+    prescription.appointment_date?.includes(prescriptionSearchQuery)
+  );
+
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchPatientProfile();
+    fetchAppointments();
+  }, [fetchAppointments]);
   
+  // Fetch prescriptions when the prescriptions tab is selected
+  useEffect(() => {
+    if (activeTab === "prescriptions") {
+      fetchPrescriptions();
+    }
+  }, [activeTab]);
+
+  // Download all prescriptions as a single PDF
+  const downloadAllPrescriptions = () => {
+    if (prescriptions.length === 0) {
+      toast({
+        title: "No Prescriptions",
+        description: "You don't have any prescriptions to download.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Create a new PDF document
+    const doc = new jsPDF();
+    let currentPage = 1;
+    let yPosition = 20;
+    
+    // Add patient info to first page header
+    doc.setFontSize(20);
+    doc.setTextColor(0, 51, 102);
+    doc.text("Medical Prescriptions Summary", 105, yPosition, { align: 'center' });
+    
+    // Add separator line
+    yPosition += 5;
+    doc.setLineWidth(0.5);
+    doc.setDrawColor(0, 51, 102);
+    doc.line(20, yPosition, 190, yPosition);
+    
+    // Add patient info
+    yPosition += 15;
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Patient: ${localStorage.getItem('username') || 'Patient'}`, 20, yPosition);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, 150, yPosition);
+    
+    yPosition += 10;
+    doc.text(`Total Prescriptions: ${prescriptions.length}`, 20, yPosition);
+    
+    yPosition += 15;
+    
+    // Sort prescriptions by date (newest first)
+    const sortedPrescriptions = [...prescriptions].sort((a, b) => {
+      return new Date(b.appointment_date) - new Date(a.appointment_date);
+    });
+    
+    // Add each prescription
+    for (let i = 0; i < sortedPrescriptions.length; i++) {
+      const prescription = sortedPrescriptions[i];
+      
+      // Check if we need a new page
+      if (yPosition > 250) {
+        doc.addPage();
+        currentPage++;
+        yPosition = 20;
+      }
+      
+      // Add prescription header
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 51, 102);
+      doc.text(`Prescription #${i+1}`, 20, yPosition);
+      
+      // Add prescription date and doctor
+      yPosition += 10;
+      doc.setFontSize(12);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Date: ${prescription.appointment_date}`, 20, yPosition);
+      doc.text(`Doctor: ${prescription.doctor_name}`, 120, yPosition);
+      
+      // Add specialty
+      yPosition += 8;
+      doc.text(`Specialty: ${prescription.specialty}`, 20, yPosition);
+      
+      // Add prescription text
+      yPosition += 10;
+      doc.setFont('helvetica', 'bold');
+      doc.text("Prescription:", 20, yPosition);
+      
+      // Handle long prescription text
+      yPosition += 8;
+      doc.setFont('helvetica', 'normal');
+      const splitPrescription = doc.splitTextToSize(prescription.prescription_text, 170);
+      doc.text(splitPrescription, 20, yPosition);
+      
+      // Update yPosition based on prescription text length
+      yPosition += splitPrescription.length * 7;
+      
+      // Add consultation notes if available
+      if (prescription.consultation_notes) {
+        yPosition += 8;
+        doc.setFont('helvetica', 'bold');
+        doc.text("Consultation Notes:", 20, yPosition);
+        
+        yPosition += 8;
+        doc.setFont('helvetica', 'normal');
+        const splitNotes = doc.splitTextToSize(prescription.consultation_notes, 170);
+        doc.text(splitNotes, 20, yPosition);
+        
+        // Update yPosition based on notes length
+        yPosition += splitNotes.length * 7;
+      }
+      
+      // Add separator line
+      yPosition += 10;
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.2);
+      doc.line(20, yPosition, 190, yPosition);
+      
+      yPosition += 15;
+    }
+    
+    // Add footer with page numbers
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Page ${i} of ${pageCount}`, 105, 285, { align: 'center' });
+    }
+    
+    // Save the PDF
+    const fileName = `all_prescriptions_${new Date().toISOString().slice(0, 10)}.pdf`;
+    doc.save(fileName);
+    
+    toast({
+      title: "Prescriptions Downloaded",
+      description: `All ${prescriptions.length} prescriptions have been downloaded.`,
+    });
+  };
+
   return (
     <div className="flex h-screen bg-background">
       {/* Sidebar */}
@@ -468,7 +763,7 @@ const PatientDashboard = () => {
           </ul>
         </nav>
         
-        <div className="p-4">
+        <div className="p-4 relative z-50">
           <Button 
             variant="outline" 
             className="w-full justify-start"
@@ -608,6 +903,110 @@ const PatientDashboard = () => {
                 </div>
               </CardContent>
             </Card>
+          ) : activeTab === "prescriptions" ? (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>My Prescriptions</CardTitle>
+                  <CardDescription>View and download your prescriptions</CardDescription>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="relative w-64">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                    <Input 
+                      placeholder="Search prescriptions..." 
+                      className="pl-10"
+                      value={prescriptionSearchQuery}
+                      onChange={(e) => setPrescriptionSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={downloadAllPrescriptions}
+                    disabled={prescriptions.length === 0 || isLoadingPrescriptions}
+                    className="whitespace-nowrap"
+                  >
+                    <Download className="mr-1 h-4 w-4" />
+                    Download All
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {isLoadingPrescriptions ? (
+                  <div className="flex justify-center items-center py-10">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <span className="ml-2">Loading prescriptions...</span>
+                  </div>
+                ) : filteredPrescriptions.length > 0 ? (
+                  <div className="space-y-4">
+                    {filteredPrescriptions.map((prescription) => (
+                      <Card 
+                        key={prescription.id} 
+                        className="hover:border-primary transition-colors"
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex justify-between items-start">
+                            <div className="flex items-center">
+                              <AnimatedAvatar 
+                                name={prescription.doctor_name} 
+                                size="md" 
+                                className="shadow-md"
+                              />
+                              <div className="ml-3">
+                                <h3 className="font-medium">{prescription.doctor_name}</h3>
+                                <p className="text-sm text-muted-foreground">{prescription.specialty}</p>
+                              </div>
+                            </div>
+                            <div className="flex flex-col items-end">
+                              <div className="flex items-center">
+                                <Badge variant="outline">
+                                  {formatDate(prescription.appointment_date)}
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground mt-1">{prescription.appointment_time}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-3">
+                            <h4 className="text-sm font-medium">Prescription:</h4>
+                            <p className="text-sm text-muted-foreground">
+                              {prescription.prescription_text.length > 100
+                                ? `${prescription.prescription_text.substring(0, 100)}...`
+                                : prescription.prescription_text}
+                            </p>
+                          </div>
+                          
+                          <div className="mt-4 flex justify-end">
+                            <Button 
+                              variant="default" 
+                              size="sm"
+                              onClick={() => downloadPrescription(prescription)}
+                              className="flex items-center"
+                            >
+                              <Download className="mr-1 h-4 w-4" />
+                              Download Prescription
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-10">
+                    <div className="flex justify-center mb-3">
+                      <FileText className="h-10 w-10 text-muted-foreground" />
+                    </div>
+                    <h3 className="text-lg font-medium">No prescriptions found</h3>
+                    <p className="text-muted-foreground">
+                      {prescriptionSearchQuery 
+                        ? "Try adjusting your search" 
+                        : "You have no prescriptions yet"}
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           ) : (
             <>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -625,7 +1024,7 @@ const PatientDashboard = () => {
                   <CardContent className="p-6 flex items-center justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">Today's Appointments</p>
-                      <p className="text-3xl font-bold">{appointments.filter(a => isToday(a.appointment_date) && a.status === "upcoming").length}</p>
+                      <p className="text-3xl font-bold">{todayAppointments.length}</p>
                     </div>
                     <Clock className="h-10 w-10 text-primary/60" />
                   </CardContent>
@@ -646,16 +1045,41 @@ const PatientDashboard = () => {
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div>
                     <CardTitle>My Appointments</CardTitle>
-                    <CardDescription>View and manage your upcoming appointments</CardDescription>
+                    <CardDescription>View and manage your {appointmentStatusFilter === "all" ? "all" : appointmentStatusFilter} appointments</CardDescription>
                   </div>
-                  <div className="relative w-64">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                    <Input 
-                      placeholder="Search appointments..." 
-                      className="pl-10"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant={appointmentStatusFilter === "upcoming" ? "default" : "outline"} 
+                        size="sm"
+                        onClick={() => setAppointmentStatusFilter("upcoming")}
+                      >
+                        Upcoming
+                      </Button>
+                      <Button 
+                        variant={appointmentStatusFilter === "completed" ? "default" : "outline"} 
+                        size="sm"
+                        onClick={() => setAppointmentStatusFilter("completed")}
+                      >
+                        Completed
+                      </Button>
+                      <Button 
+                        variant={appointmentStatusFilter === "all" ? "default" : "outline"} 
+                        size="sm"
+                        onClick={() => setAppointmentStatusFilter("all")}
+                      >
+                        All
+                      </Button>
+                    </div>
+                    <div className="relative w-64">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                      <Input 
+                        placeholder="Search appointments..." 
+                        className="pl-10"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -699,8 +1123,8 @@ const PatientDashboard = () => {
                               <p className="text-sm text-muted-foreground">{appointment.symptoms}</p>
                             </div>
                             
-                            {isToday(appointment.appointment_date) && appointment.status === "upcoming" && (
-                              <div className="mt-4 flex justify-end">
+                            <div className="mt-2 flex justify-end">
+                              {appointment.is_online && appointment.status === "upcoming" ? (
                                 <Button 
                                   variant="default" 
                                   size="sm"
@@ -713,8 +1137,28 @@ const PatientDashboard = () => {
                                   <Video className="mr-1 h-4 w-4" />
                                   Join Video Call
                                 </Button>
-                              </div>
-                            )}
+                              ) : appointment.is_online && appointment.status === "completed" ? (
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  disabled
+                                  className="flex items-center opacity-70"
+                                >
+                                  <TicketCheck className="mr-1 h-4 w-4" />
+                                  Completed
+                                </Button>
+                              ) : (
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  disabled
+                                  className="flex items-center opacity-70"
+                                >
+                                  <Video className="mr-1 h-4 w-4" />
+                                  In-person Visit
+                                </Button>
+                              )}
+                            </div>
                           </CardContent>
                         </Card>
                       ))}
@@ -726,7 +1170,11 @@ const PatientDashboard = () => {
                       </div>
                       <h3 className="text-lg font-medium">No appointments found</h3>
                       <p className="text-muted-foreground">
-                        {searchQuery ? "Try adjusting your search" : "You have no appointments scheduled"}
+                        {searchQuery 
+                          ? "No appointments matching your search criteria" 
+                          : appointmentStatusFilter === "all"
+                            ? "You have no appointments"
+                            : `You have no ${appointmentStatusFilter} appointments`}
                       </p>
                     </div>
                   )}
@@ -901,14 +1349,62 @@ const PatientDashboard = () => {
               </Button>
               
               {isToday(selectedAppointment.appointment_date) && selectedAppointment.status === "upcoming" && (
-                <Button 
-                  onClick={() => {
-                    setIsAppointmentDialogOpen(false);
-                    joinVideoCall(selectedAppointment.id);
+                selectedAppointment.is_online ? (
+                  <Button 
+                    onClick={() => {
+                      setIsAppointmentDialogOpen(false);
+                      joinVideoCall(selectedAppointment.id);
+                    }}
+                  >
+                    <Video className="mr-2 h-4 w-4" />
+                    Join Call
+                  </Button>
+                ) : (
+                  <Button 
+                    variant="outline"
+                    disabled
+                  >
+                    <Video className="mr-2 h-4 w-4" />
+                    Waiting for Doctor
+                  </Button>
+                )
+              )}
+              
+              {selectedAppointment.status === "completed" && (
+                <Button
+                  onClick={async () => {
+                    try {
+                      // Check if prescription exists
+                      const exists = await prescriptionsApi.checkPrescriptionExists(selectedAppointment.id);
+                      if (exists) {
+                        const prescription = await prescriptionsApi.getPrescription(selectedAppointment.id);
+                        const prescriptionWithDetails = {
+                          ...prescription,
+                          appointment_date: selectedAppointment.appointment_date,
+                          appointment_time: selectedAppointment.appointment_time,
+                          doctor_name: selectedAppointment.doctor_name,
+                          specialty: selectedAppointment.specialty
+                        };
+                        downloadPrescription(prescriptionWithDetails);
+                      } else {
+                        toast({
+                          title: "No Prescription",
+                          description: "No prescription is available for this appointment.",
+                          variant: "destructive",
+                        });
+                      }
+                    } catch (error) {
+                      console.error("Error downloading prescription:", error);
+                      toast({
+                        title: "Error",
+                        description: "Could not download prescription.",
+                        variant: "destructive",
+                      });
+                    }
                   }}
                 >
-                  <Video className="mr-2 h-4 w-4" />
-                  Join Call
+                  <Download className="mr-2 h-4 w-4" />
+                  Download Prescription
                 </Button>
               )}
             </DialogFooter>

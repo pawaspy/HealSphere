@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -530,22 +531,38 @@ func (server *Server) listTodayDoctorAppointments(ctx *gin.Context) {
 	// Get authenticated user from the middleware
 	authPayload := ctx.MustGet(authorizationPayloadKey).(*token.Payload)
 
+	// Debug information
+	fmt.Printf("listTodayDoctorAppointments for user: %s, role: %s\n", authPayload.Username, authPayload.Role)
+
 	// Verify that the user is a doctor
 	if authPayload.Role != "doctor" {
+		fmt.Printf("ERROR: User %s with role %s attempted to access doctor appointments\n",
+			authPayload.Username, authPayload.Role)
 		ctx.JSON(http.StatusForbidden, errorResponse(errors.New("only doctors can access this endpoint")))
 		return
 	}
 
+	// Log the current date for debugging
+	currentDate := time.Now().Format("2006-01-02")
+	fmt.Printf("Current date for appointments query: %s\n", currentDate)
+
 	// Get the appointments
 	appointments, err := server.store.ListTodayDoctorAppointments(ctx, authPayload.Username)
 	if err != nil {
+		fmt.Printf("ERROR: Failed to get today's appointments for doctor %s: %v\n",
+			authPayload.Username, err)
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 		return
 	}
 
+	fmt.Printf("Found %d appointments for doctor %s today\n", len(appointments), authPayload.Username)
+
 	response := make([]appointmentResponse, len(appointments))
 	for i, appointment := range appointments {
 		response[i] = newAppointmentResponse(appointment)
+		// Debug log each appointment
+		fmt.Printf("Appointment ID: %d, Date: %v, Patient: %s\n",
+			appointment.ID, appointment.AppointmentDate, appointment.PatientUsername)
 	}
 
 	ctx.JSON(http.StatusOK, response)
@@ -575,4 +592,63 @@ func (server *Server) listUpcomingDoctorAppointments(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, response)
+}
+
+// updateAppointmentOnlineStatus updates the online status of an appointment
+func (server *Server) updateAppointmentOnlineStatus(ctx *gin.Context) {
+	// Get appointment ID from URL
+	idParam := ctx.Param("id")
+	id, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, errorResponse(errors.New("invalid appointment ID")))
+		return
+	}
+
+	// Parse request body
+	var req struct {
+		IsOnline bool `json:"is_online" binding:"required"`
+	}
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		return
+	}
+
+	// Get the authenticated user
+	authPayload := ctx.MustGet(authorizationPayloadKey).(*token.Payload)
+
+	// Get the appointment
+	appointment, err := server.store.GetAppointmentById(ctx, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			ctx.JSON(http.StatusNotFound, errorResponse(errors.New("appointment not found")))
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	// Check if the user is authorized to update this appointment
+	if authPayload.Role == "doctor" && appointment.DoctorUsername != authPayload.Username {
+		ctx.JSON(http.StatusForbidden, errorResponse(errors.New("not authorized to update this appointment")))
+		return
+	} else if authPayload.Role == "patient" && appointment.PatientUsername != authPayload.Username {
+		ctx.JSON(http.StatusForbidden, errorResponse(errors.New("not authorized to update this appointment")))
+		return
+	}
+
+	// Update the online status
+	updatedAppointment, err := server.store.UpdateOnlineStatus(ctx, db.UpdateOnlineStatusParams{
+		ID: id,
+		IsOnline: pgtype.Bool{
+			Bool:  req.IsOnline,
+			Valid: true,
+		},
+	})
+
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	ctx.JSON(http.StatusOK, updatedAppointment)
 }

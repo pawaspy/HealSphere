@@ -17,7 +17,7 @@ SET
     notes = $2,
     updated_at = CURRENT_DATE
 WHERE id = $1
-RETURNING id, patient_username, doctor_username, doctor_name, appointment_date, appointment_time, specialty, symptoms, status, notes, created_at, updated_at
+RETURNING id, patient_username, doctor_username, doctor_name, appointment_date, appointment_time, specialty, symptoms, status, notes, created_at, updated_at, is_online
 `
 
 type AddAppointmentNotesParams struct {
@@ -41,6 +41,7 @@ func (q *Queries) AddAppointmentNotes(ctx context.Context, arg AddAppointmentNot
 		&i.Notes,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IsOnline,
 	)
 	return i, err
 }
@@ -54,10 +55,11 @@ INSERT INTO appointments (
     appointment_time,
     specialty,
     symptoms,
-    status
+    status,
+    is_online
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8
-) RETURNING id, patient_username, doctor_username, doctor_name, appointment_date, appointment_time, specialty, symptoms, status, notes, created_at, updated_at
+    $1, $2, $3, $4, $5, $6, $7, $8, $9
+) RETURNING id, patient_username, doctor_username, doctor_name, appointment_date, appointment_time, specialty, symptoms, status, notes, created_at, updated_at, is_online
 `
 
 type CreateAppointmentParams struct {
@@ -69,6 +71,7 @@ type CreateAppointmentParams struct {
 	Specialty       string      `json:"specialty"`
 	Symptoms        string      `json:"symptoms"`
 	Status          string      `json:"status"`
+	IsOnline        pgtype.Bool `json:"is_online"`
 }
 
 func (q *Queries) CreateAppointment(ctx context.Context, arg CreateAppointmentParams) (Appointment, error) {
@@ -81,6 +84,7 @@ func (q *Queries) CreateAppointment(ctx context.Context, arg CreateAppointmentPa
 		arg.Specialty,
 		arg.Symptoms,
 		arg.Status,
+		arg.IsOnline,
 	)
 	var i Appointment
 	err := row.Scan(
@@ -96,6 +100,7 @@ func (q *Queries) CreateAppointment(ctx context.Context, arg CreateAppointmentPa
 		&i.Notes,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IsOnline,
 	)
 	return i, err
 }
@@ -111,7 +116,7 @@ func (q *Queries) DeleteAppointment(ctx context.Context, id int64) error {
 }
 
 const getAppointmentById = `-- name: GetAppointmentById :one
-SELECT id, patient_username, doctor_username, doctor_name, appointment_date, appointment_time, specialty, symptoms, status, notes, created_at, updated_at FROM appointments
+SELECT id, patient_username, doctor_username, doctor_name, appointment_date, appointment_time, specialty, symptoms, status, notes, created_at, updated_at, is_online FROM appointments
 WHERE id = $1
 `
 
@@ -131,12 +136,13 @@ func (q *Queries) GetAppointmentById(ctx context.Context, id int64) (Appointment
 		&i.Notes,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IsOnline,
 	)
 	return i, err
 }
 
 const listCompletedPatientAppointments = `-- name: ListCompletedPatientAppointments :many
-SELECT id, patient_username, doctor_username, doctor_name, appointment_date, appointment_time, specialty, symptoms, status, notes, created_at, updated_at FROM appointments
+SELECT id, patient_username, doctor_username, doctor_name, appointment_date, appointment_time, specialty, symptoms, status, notes, created_at, updated_at, is_online FROM appointments
 WHERE patient_username = $1 AND status = 'completed'
 ORDER BY appointment_date DESC, appointment_time DESC
 `
@@ -163,6 +169,7 @@ func (q *Queries) ListCompletedPatientAppointments(ctx context.Context, patientU
 			&i.Notes,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.IsOnline,
 		); err != nil {
 			return nil, err
 		}
@@ -175,7 +182,7 @@ func (q *Queries) ListCompletedPatientAppointments(ctx context.Context, patientU
 }
 
 const listDoctorAppointments = `-- name: ListDoctorAppointments :many
-SELECT id, patient_username, doctor_username, doctor_name, appointment_date, appointment_time, specialty, symptoms, status, notes, created_at, updated_at FROM appointments
+SELECT id, patient_username, doctor_username, doctor_name, appointment_date, appointment_time, specialty, symptoms, status, notes, created_at, updated_at, is_online FROM appointments
 WHERE doctor_username = $1
 ORDER BY appointment_date, appointment_time
 `
@@ -202,6 +209,7 @@ func (q *Queries) ListDoctorAppointments(ctx context.Context, doctorUsername str
 			&i.Notes,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.IsOnline,
 		); err != nil {
 			return nil, err
 		}
@@ -214,7 +222,7 @@ func (q *Queries) ListDoctorAppointments(ctx context.Context, doctorUsername str
 }
 
 const listPatientAppointments = `-- name: ListPatientAppointments :many
-SELECT id, patient_username, doctor_username, doctor_name, appointment_date, appointment_time, specialty, symptoms, status, notes, created_at, updated_at FROM appointments
+SELECT id, patient_username, doctor_username, doctor_name, appointment_date, appointment_time, specialty, symptoms, status, notes, created_at, updated_at, is_online FROM appointments
 WHERE patient_username = $1
 ORDER BY appointment_date, appointment_time
 `
@@ -241,6 +249,7 @@ func (q *Queries) ListPatientAppointments(ctx context.Context, patientUsername s
 			&i.Notes,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.IsOnline,
 		); err != nil {
 			return nil, err
 		}
@@ -253,7 +262,7 @@ func (q *Queries) ListPatientAppointments(ctx context.Context, patientUsername s
 }
 
 const listTodayDoctorAppointments = `-- name: ListTodayDoctorAppointments :many
-SELECT id, patient_username, doctor_username, doctor_name, appointment_date, appointment_time, specialty, symptoms, status, notes, created_at, updated_at FROM appointments
+SELECT id, patient_username, doctor_username, doctor_name, appointment_date, appointment_time, specialty, symptoms, status, notes, created_at, updated_at, is_online FROM appointments
 WHERE doctor_username = $1 AND appointment_date = CURRENT_DATE
 ORDER BY appointment_time
 `
@@ -280,6 +289,7 @@ func (q *Queries) ListTodayDoctorAppointments(ctx context.Context, doctorUsernam
 			&i.Notes,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.IsOnline,
 		); err != nil {
 			return nil, err
 		}
@@ -292,7 +302,7 @@ func (q *Queries) ListTodayDoctorAppointments(ctx context.Context, doctorUsernam
 }
 
 const listTodayPatientAppointments = `-- name: ListTodayPatientAppointments :many
-SELECT id, patient_username, doctor_username, doctor_name, appointment_date, appointment_time, specialty, symptoms, status, notes, created_at, updated_at FROM appointments
+SELECT id, patient_username, doctor_username, doctor_name, appointment_date, appointment_time, specialty, symptoms, status, notes, created_at, updated_at, is_online FROM appointments
 WHERE patient_username = $1 AND appointment_date = CURRENT_DATE
 ORDER BY appointment_time
 `
@@ -319,6 +329,7 @@ func (q *Queries) ListTodayPatientAppointments(ctx context.Context, patientUsern
 			&i.Notes,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.IsOnline,
 		); err != nil {
 			return nil, err
 		}
@@ -331,7 +342,7 @@ func (q *Queries) ListTodayPatientAppointments(ctx context.Context, patientUsern
 }
 
 const listUpcomingDoctorAppointments = `-- name: ListUpcomingDoctorAppointments :many
-SELECT id, patient_username, doctor_username, doctor_name, appointment_date, appointment_time, specialty, symptoms, status, notes, created_at, updated_at FROM appointments
+SELECT id, patient_username, doctor_username, doctor_name, appointment_date, appointment_time, specialty, symptoms, status, notes, created_at, updated_at, is_online FROM appointments
 WHERE doctor_username = $1 AND appointment_date >= CURRENT_DATE AND status = 'upcoming'
 ORDER BY appointment_date, appointment_time
 `
@@ -358,6 +369,7 @@ func (q *Queries) ListUpcomingDoctorAppointments(ctx context.Context, doctorUser
 			&i.Notes,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.IsOnline,
 		); err != nil {
 			return nil, err
 		}
@@ -370,7 +382,7 @@ func (q *Queries) ListUpcomingDoctorAppointments(ctx context.Context, doctorUser
 }
 
 const listUpcomingPatientAppointments = `-- name: ListUpcomingPatientAppointments :many
-SELECT id, patient_username, doctor_username, doctor_name, appointment_date, appointment_time, specialty, symptoms, status, notes, created_at, updated_at FROM appointments
+SELECT id, patient_username, doctor_username, doctor_name, appointment_date, appointment_time, specialty, symptoms, status, notes, created_at, updated_at, is_online FROM appointments
 WHERE patient_username = $1 AND appointment_date >= CURRENT_DATE AND status = 'upcoming'
 ORDER BY appointment_date, appointment_time
 `
@@ -397,6 +409,7 @@ func (q *Queries) ListUpcomingPatientAppointments(ctx context.Context, patientUs
 			&i.Notes,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.IsOnline,
 		); err != nil {
 			return nil, err
 		}
@@ -414,7 +427,7 @@ SET
     status = $2,
     updated_at = CURRENT_DATE
 WHERE id = $1
-RETURNING id, patient_username, doctor_username, doctor_name, appointment_date, appointment_time, specialty, symptoms, status, notes, created_at, updated_at
+RETURNING id, patient_username, doctor_username, doctor_name, appointment_date, appointment_time, specialty, symptoms, status, notes, created_at, updated_at, is_online
 `
 
 type UpdateAppointmentStatusParams struct {
@@ -438,6 +451,42 @@ func (q *Queries) UpdateAppointmentStatus(ctx context.Context, arg UpdateAppoint
 		&i.Notes,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IsOnline,
+	)
+	return i, err
+}
+
+const updateOnlineStatus = `-- name: UpdateOnlineStatus :one
+UPDATE appointments
+SET
+    is_online = $2,
+    updated_at = CURRENT_DATE
+WHERE id = $1
+RETURNING id, patient_username, doctor_username, doctor_name, appointment_date, appointment_time, specialty, symptoms, status, notes, created_at, updated_at, is_online
+`
+
+type UpdateOnlineStatusParams struct {
+	ID       int64       `json:"id"`
+	IsOnline pgtype.Bool `json:"is_online"`
+}
+
+func (q *Queries) UpdateOnlineStatus(ctx context.Context, arg UpdateOnlineStatusParams) (Appointment, error) {
+	row := q.db.QueryRow(ctx, updateOnlineStatus, arg.ID, arg.IsOnline)
+	var i Appointment
+	err := row.Scan(
+		&i.ID,
+		&i.PatientUsername,
+		&i.DoctorUsername,
+		&i.DoctorName,
+		&i.AppointmentDate,
+		&i.AppointmentTime,
+		&i.Specialty,
+		&i.Symptoms,
+		&i.Status,
+		&i.Notes,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.IsOnline,
 	)
 	return i, err
 }

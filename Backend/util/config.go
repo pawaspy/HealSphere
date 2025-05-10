@@ -7,11 +7,12 @@ import (
 )
 
 type Config struct {
-	Environment          string        `mapstructure:"ENVIRONMENT"`
-	DBSource             string        `mapstructure:"DB_SOURCE"`
-	HTTPAddress          string        `mapstructure:"HTTP_ADDRESS"`
-	TokenSymmetricKey    string        `mapstructure:"TOKEN_SYMMETRIC_KEY"`
-	TokenDuration        time.Duration `mapstructure:"TOKEN_DURATION"`
+	Environment       string        `mapstructure:"ENVIRONMENT"`
+	DBSource          string        `mapstructure:"DB_SOURCE"`
+	HTTPAddress       string        `mapstructure:"HTTP_ADDRESS"`
+	TokenSymmetricKey string        `mapstructure:"TOKEN_SYMMETRIC_KEY"`
+	TokenDuration     time.Duration `mapstructure:"TOKEN_DURATION"`
+	GeminiAPIKey      string        `mapstructure:"GEMINI_API_KEY"`
 }
 
 func LoadConfig(path string) (config Config, err error) {

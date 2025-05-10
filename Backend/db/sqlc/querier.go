@@ -17,14 +17,17 @@ type Querier interface {
 	CreateAppointment(ctx context.Context, arg CreateAppointmentParams) (Appointment, error)
 	CreateDoctor(ctx context.Context, arg CreateDoctorParams) (Doctor, error)
 	CreatePatient(ctx context.Context, arg CreatePatientParams) (Patient, error)
+	CreatePrescription(ctx context.Context, arg CreatePrescriptionParams) (Prescription, error)
 	DeleteAppointment(ctx context.Context, id int64) error
 	DeleteDoctor(ctx context.Context, username string) error
 	DeletePatient(ctx context.Context, username string) error
+	DeletePrescription(ctx context.Context, appointmentID int64) error
 	GetAppointmentById(ctx context.Context, id int64) (Appointment, error)
 	GetDoctorByEmail(ctx context.Context, email string) (Doctor, error)
 	GetDoctorByUsername(ctx context.Context, username string) (Doctor, error)
 	GetPatientByEmail(ctx context.Context, email string) (Patient, error)
 	GetPatientByUsername(ctx context.Context, username string) (Patient, error)
+	GetPrescription(ctx context.Context, appointmentID int64) (Prescription, error)
 	ListCompletedPatientAppointments(ctx context.Context, patientUsername string) ([]Appointment, error)
 	ListDoctorAppointments(ctx context.Context, doctorUsername string) ([]Appointment, error)
 	ListDoctors(ctx context.Context, arg ListDoctorsParams) ([]Doctor, error)
@@ -38,8 +41,11 @@ type Querier interface {
 	UpdateAppointmentStatus(ctx context.Context, arg UpdateAppointmentStatusParams) (Appointment, error)
 	UpdateDoctorPassword(ctx context.Context, arg UpdateDoctorPasswordParams) error
 	UpdateDoctorProfile(ctx context.Context, arg UpdateDoctorProfileParams) (Doctor, error)
+	UpdateFeedback(ctx context.Context, arg UpdateFeedbackParams) (Prescription, error)
+	UpdateOnlineStatus(ctx context.Context, arg UpdateOnlineStatusParams) (Appointment, error)
 	UpdatePatientPassword(ctx context.Context, arg UpdatePatientPasswordParams) error
 	UpdatePatientProfile(ctx context.Context, arg UpdatePatientProfileParams) (Patient, error)
+	UpdatePrescription(ctx context.Context, arg UpdatePrescriptionParams) (Prescription, error)
 }
 
 var _ Querier = (*Queries)(nil)

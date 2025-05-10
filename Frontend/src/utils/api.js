@@ -45,6 +45,13 @@ export const getHeaders = (includeAuth = true) => {
 export const apiGet = async (endpoint, requiresAuth = true) => {
   try {
     console.log(`Making GET request to ${endpoint}`);
+    
+    // Check auth token info if auth is required
+    if (requiresAuth) {
+      const token = localStorage.getItem('token');
+      console.log(`Auth token for ${endpoint}: ${token ? 'exists' : 'missing'}`);
+    }
+    
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'GET',
       headers: getHeaders(requiresAuth),
@@ -60,6 +67,41 @@ export const apiGet = async (endpoint, requiresAuth = true) => {
           return [];
         }
       }
+      
+      // For 500 errors, try to get more detailed error message from response
+      if (response.status === 500) {
+        try {
+          const contentType = response.headers.get('content-type');
+          let errorData;
+          
+          if (contentType && contentType.includes('application/json')) {
+            errorData = await response.json();
+            console.error(`Server error (500) details for ${endpoint}:`, errorData);
+            
+            // Special handling for prescription "no rows" error
+            if (endpoint.includes('/prescriptions/') && 
+                errorData.error && 
+                errorData.error.includes('no rows in result set')) {
+              const notFoundError = new Error('404 Prescription not found');
+              notFoundError.status = 404;
+              throw notFoundError;
+            }
+          } else {
+            const errorText = await response.text();
+            console.error(`Server error (500) details for ${endpoint}:`, errorText);
+            
+            // Special handling for prescription "no rows" error as text
+            if (endpoint.includes('/prescriptions/') && errorText.includes('no rows in result set')) {
+              const notFoundError = new Error('404 Prescription not found');
+              notFoundError.status = 404;
+              throw notFoundError;
+            }
+          }
+        } catch (e) {
+          console.error(`Could not read error details for ${endpoint} 500 error:`, e);
+        }
+      }
+      
       throw new Error(`API Error: ${response.status}`);
     }
 
@@ -205,7 +247,7 @@ export const apiDelete = async (endpoint) => {
 };
 
 // Auth-specific API functions
-export const authApi = {
+const authApi = {
   // Patient authentication
   registerPatient: (data) => apiPost('/patients', data, false),
   loginPatient: (data) => apiPost('/patients/login', data, false),
@@ -224,7 +266,7 @@ export const authApi = {
 };
 
 // Doctor listing and search
-export const doctorsApi = {
+const doctorsApi = {
   listDoctors: (page = 1, pageSize = 10) => 
     apiGet(`/doctors?page_id=${page}&page_size=${pageSize}`, false),
   searchDoctorsBySpecialty: (specialty, page = 1, pageSize = 10) => 
@@ -236,7 +278,7 @@ export const doctorsApi = {
 };
 
 // Patient operations
-export const patientsApi = {
+const patientsApi = {
   checkUsernameExists: (username) => 
     apiGet(`/patients/check-username/${username}`, false),
   checkEmailExists: (email) => 
@@ -244,7 +286,7 @@ export const patientsApi = {
 };
 
 // Appointment operations
-export const appointmentsApi = {
+const appointmentsApi = {
   // Create a new appointment
   createAppointment: async (data) => {
     try {
@@ -537,4 +579,120 @@ export const appointmentsApi = {
   // Delete/cancel an appointment
   deleteAppointment: (id) => 
     apiDelete(`/appointments/${id}`),
+
+  // Update online status of an appointment
+  updateOnlineStatus: async (appointmentId, isOnline) => {
+    try {
+      const response = await apiPatch(`/appointments/${appointmentId}/online`, { 
+        is_online: isOnline 
+      });
+      return response;
+    } catch (error) {
+      console.error('Error updating online status:', error);
+      throw error;
+    }
+  }
+};
+
+const prescriptionsApi = {
+  // Save a prescription after a consultation
+  savePrescription: async (appointmentId, prescriptionText, consultationNotes) => {
+    try {
+      const response = await apiPost('/prescriptions', {
+        appointment_id: appointmentId,
+        prescription_text: prescriptionText,
+        consultation_notes: consultationNotes
+      });
+      return response;
+    } catch (error) {
+      console.error('Error saving prescription:', error);
+      throw error;
+    }
+  },
+
+  // Check if a prescription exists for an appointment
+  checkPrescriptionExists: async (appointmentId) => {
+    try {
+      console.log(`Checking if prescription exists for appointment ID: ${appointmentId}`);
+      await apiGet(`/prescriptions/${appointmentId}/exists`);
+      return true;
+    } catch (error) {
+      // If we get a 404 or "no rows in result set" error, it means the prescription doesn't exist
+      if (error.status === 404 || 
+          error.message.includes('404') || 
+          (error.message.includes('500') && error.message.includes('no rows in result set'))) {
+        console.log(`No prescription found for appointment ID: ${appointmentId}`);
+        return false;
+      }
+      console.error('Error checking prescription existence:', error);
+      // Return false instead of throwing to prevent blocking the UI
+      return false;
+    }
+  },
+
+  // Get a prescription by appointment ID
+  getPrescription: async (appointmentId) => {
+    try {
+      console.log(`Getting prescription for appointment ID: ${appointmentId}`);
+      const response = await apiGet(`/prescriptions/${appointmentId}`);
+      return response;
+    } catch (error) {
+      // Check if this is a "no rows in result set" error (prescription doesn't exist)
+      if (error.message.includes('500') && error.message.includes('no rows in result set')) {
+        console.log(`No prescription found for appointment ID: ${appointmentId} (500 error with 'no rows')`);
+        // Convert to a standard 404 error for consistent handling
+        const notFoundError = new Error('404 Prescription not found');
+        notFoundError.status = 404;
+        throw notFoundError;
+      }
+      
+      if (error.message.includes('404')) {
+        console.log(`No prescription found for appointment ID: ${appointmentId} (404 error)`);
+        const notFoundError = new Error('404 Prescription not found');
+        notFoundError.status = 404;
+        throw notFoundError;
+      }
+      
+      console.error('Error getting prescription:', error);
+      throw error;
+    }
+  },
+
+  // Update a prescription
+  updatePrescription: async (appointmentId, prescriptionText, consultationNotes) => {
+    try {
+      const response = await apiPut(`/prescriptions/${appointmentId}`, {
+        prescription_text: prescriptionText,
+        consultation_notes: consultationNotes
+      });
+      return response;
+    } catch (error) {
+      console.error('Error updating prescription:', error);
+      throw error;
+    }
+  },
+
+  // Submit feedback for a prescription
+  submitFeedback: async (appointmentId, rating, comment) => {
+    try {
+      const response = await apiPost(`/prescriptions/${appointmentId}/feedback`, {
+        feedback_rating: rating,
+        feedback_comment: comment
+      });
+      return response;
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+      throw error;
+    }
+  }
+};
+
+// Export all API functions
+export {
+  authApi,
+  doctorsApi,
+  patientsApi,
+  appointmentsApi,
+  prescriptionsApi,
+  API_BASE_URL
 }; 

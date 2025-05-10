@@ -7,9 +7,10 @@ INSERT INTO appointments (
     appointment_time,
     specialty,
     symptoms,
-    status
+    status,
+    is_online
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8
+    $1, $2, $3, $4, $5, $6, $7, $8, $9
 ) RETURNING *;
 
 -- name: GetAppointmentById :one
@@ -55,6 +56,14 @@ ORDER BY appointment_date DESC, appointment_time DESC;
 UPDATE appointments
 SET
     status = $2,
+    updated_at = CURRENT_DATE
+WHERE id = $1
+RETURNING *;
+
+-- name: UpdateOnlineStatus :one
+UPDATE appointments
+SET
+    is_online = $2,
     updated_at = CURRENT_DATE
 WHERE id = $1
 RETURNING *;

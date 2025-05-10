@@ -396,7 +396,7 @@ const StartConsultation = () => {
                   <div className="mt-8 flex flex-col md:flex-row justify-between items-center">
                     <div className="mb-4 md:mb-0">
                       <p className="text-sm text-muted-foreground">Consultation Fee:</p>
-                      <p className="text-2xl font-bold">$49.00</p>
+                      <p className="text-2xl font-bold">₹1.00</p>
                     </div>
                     <Button onClick={handleSubmit} size="lg">
                       Continue to Payment
