@@ -16,8 +16,8 @@ const faqCategories = [
 const faqData = [
   {
     category: "general",
-    question: "What is CareFromAnywhere?",
-    answer: "CareFromAnywhere is a telehealth platform that connects patients with licensed healthcare providers through secure video consultations. Our service allows you to receive medical advice, diagnoses, and treatment plans from the comfort of your home."
+    question: "What is TeleHealth?",
+    answer: "TeleHealth is a telehealth platform that connects patients with licensed healthcare providers through secure video consultations. Our service allows you to receive medical advice, diagnoses, and treatment plans from the comfort of your home."
   },
   {
     category: "general",
@@ -37,7 +37,7 @@ const faqData = [
   {
     category: "payment",
     question: "How much does a consultation cost?",
-    answer: "Consultation fees vary by specialty. General consultations start at $49, while specialist consultations range from $79 to $149. You can see the exact fee before confirming your appointment."
+    answer: "Consultation fees vary by specialty. General consultations start at ₹499, while specialist consultations range from ₹799 to ₹1499. You can see the exact fee before confirming your appointment."
   },
   {
     category: "payment",
@@ -52,7 +52,7 @@ const faqData = [
   {
     category: "technical",
     question: "What if I have technical issues during my consultation?",
-    answer: "If you experience technical difficulties, try refreshing your browser or restarting the app. Our support team is available via live chat or by phone at (800) 555-1234 to assist you with any technical issues."
+    answer: "If you experience technical difficulties, try refreshing your browser or restarting the app. Our support team is available via live chat or by phone at +91 (800) 555-1234 to assist you with any technical issues."
   }
 ];
 
@@ -161,7 +161,7 @@ const FaqPage = () => {
           <p className="mb-4">
             If you couldn't find the answer you were looking for, please contact our support team.
           </p>
-          <Button onClick={() => window.location.href = "mailto:support@carefroma.com"}>
+          <Button onClick={() => window.location.href = "mailto:support@telehealth.in"}>
             Contact Support
           </Button>
         </div>

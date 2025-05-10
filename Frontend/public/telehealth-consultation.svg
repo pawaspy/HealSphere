@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400">
+  <!-- Background -->
+  <rect width="600" height="400" fill="#f8fafc" />
+  
+  <!-- Laptop frame -->
+  <rect x="150" y="100" width="300" height="200" rx="10" fill="#e2e8f0" />
+  <rect x="170" y="120" width="260" height="160" rx="5" fill="#ffffff" />
+  
+  <!-- Doctor on screen -->
+  <rect x="180" y="130" width="240" height="140" rx="5" fill="#10b981" opacity="0.1" />
+  
+  <!-- Doctor avatar -->
+  <circle cx="240" cy="170" r="30" fill="#10b981" />
+  <path d="M240,150 C230,150 222,158 222,168 C222,178 230,186 240,186 C250,186 258,178 258,168 C258,158 250,150 240,150 Z" fill="#ffffff" />
+  <path d="M220,200 C220,190 230,182 240,182 C250,182 260,190 260,200" stroke="#ffffff" stroke-width="4" fill="none" />
+  
+  <!-- Stethoscope -->
+  <path d="M260,160 C270,160 275,170 275,180 C275,190 270,195 260,195" stroke="#ffffff" stroke-width="2" fill="none" />
+  <circle cx="260" cy="195" r="3" fill="#ffffff" />
+  
+  <!-- Doctor info -->
+  <rect x="280" y="150" width="120" height="10" rx="2" fill="#ffffff" opacity="0.8" />
+  <rect x="280" y="170" width="80" height="10" rx="2" fill="#ffffff" opacity="0.8" />
+  <rect x="280" y="190" width="100" height="10" rx="2" fill="#ffffff" opacity="0.8" />
+  
+  <!-- Patient silhouette -->
+  <circle cx="400" cy="350" r="25" fill="#64748b" opacity="0.7" />
+  <path d="M400,335 C392,335 385,342 385,350 C385,358 392,365 400,365 C408,365 415,358 415,350 C415,342 408,335 400,335 Z" fill="#f8fafc" />
+  
+  <!-- Medical icons -->
+  <circle cx="480" cy="150" r="15" fill="#10b981" opacity="0.2" />
+  <path d="M480,140 L480,160 M470,150 L490,150" stroke="#10b981" stroke-width="3" stroke-linecap="round" />
+  
+  <circle cx="480" cy="200" r="15" fill="#10b981" opacity="0.2" />
+  <path d="M475,195 L485,205 M485,195 L475,205" stroke="#10b981" stroke-width="3" stroke-linecap="round" />
+  
+  <circle cx="480" cy="250" r="15" fill="#10b981" opacity="0.2" />
+  <path d="M470,250 L490,250 M480,250 C480,245 483,240 490,240" stroke="#10b981" stroke-width="3" stroke-linecap="round" fill="none" />
+  
+  <!-- Decorative elements -->
+  <circle cx="120" cy="150" r="40" fill="#10b981" opacity="0.1" />
+  <circle cx="100" cy="250" r="25" fill="#10b981" opacity="0.1" />
+  <circle cx="500" cy="320" r="35" fill="#10b981" opacity="0.1" />
+  
+  <!-- Title -->
+  <text x="300" y="70" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="#0f172a">TeleHealth Consultation</text>
+  <text x="300" y="330" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" fill="#64748b">Connect with healthcare professionals from anywhere</text>
+</svg> 

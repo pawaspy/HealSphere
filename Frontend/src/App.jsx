@@ -13,6 +13,12 @@ import Consultation from "./pages/Consultation.jsx";
 import ConsultationSummary from "./pages/ConsultationSummary.jsx";
 import NotFound from "./pages/NotFound.jsx";
 import Chatbot from "./components/Chatbot.jsx";
+import Login from "./pages/Login.jsx";
+import Signup from "./pages/Signup.jsx";
+import DoctorDashboard from "./pages/DoctorDashboard.jsx";
+import VideoCall from "./pages/VideoCall.jsx";
+import PatientDashboard from "./pages/PatientDashboard.jsx";
+import Profile from "./pages/Profile.jsx";
 
 const queryClient = new QueryClient();
 
@@ -27,10 +33,16 @@ const App = () => (
           <Route path="/how-it-works" element={<HowItWorksPage />} />
           <Route path="/specialties" element={<SpecialtiesPage />} />
           <Route path="/faq" element={<FaqPage />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
           <Route path="/start-consultation" element={<StartConsultation />} />
           <Route path="/payment" element={<Payment />} />
           <Route path="/consultation" element={<Consultation />} />
           <Route path="/consultation-summary" element={<ConsultationSummary />} />
+          <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
+          <Route path="/patient/dashboard" element={<PatientDashboard />} />
+          <Route path="/video-call/:appointmentId" element={<VideoCall />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         <Chatbot />

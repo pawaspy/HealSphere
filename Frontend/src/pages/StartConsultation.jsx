@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -41,6 +41,52 @@ const StartConsultation = () => {
     symptoms: "",
     existingConditions: ""
   });
+  
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userRole, setUserRole] = useState(null);
+  
+  // Check if user is logged in
+  useEffect(() => {
+    // In a real app, this would be an authentication check
+    // For now, we'll simulate it
+    const checkAuth = () => {
+      // Get auth status from localStorage or session
+      const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
+      const role = localStorage.getItem("userRole");
+      
+      setIsLoggedIn(isAuthenticated);
+      setUserRole(role);
+      
+      // If not logged in, redirect to login
+      if (!isAuthenticated) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to book a consultation",
+          variant: "destructive",
+        });
+        navigate("/login");
+        return;
+      }
+      
+      // If logged in as doctor, redirect to dashboard
+      if (role === "doctor") {
+        toast({
+          title: "Access Denied",
+          description: "Doctors cannot book consultations",
+          variant: "destructive",
+        });
+        navigate("/doctor-dashboard");
+        return;
+      }
+    };
+    
+    checkAuth();
+  }, [navigate, toast]);
+  
+  // If not logged in or is a doctor, don't render the component
+  if (!isLoggedIn || userRole === "doctor") {
+    return null;
+  }
   
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -98,13 +144,27 @@ const StartConsultation = () => {
     <>
       <Navbar />
       <main className="container mx-auto px-4 py-8 max-w-4xl">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">
-            Start Your Consultation
-          </h1>
-          <p className="text-muted-foreground">
-            Fill in your details to get started with your telehealth consultation.
-          </p>
+        <div className="mb-8 flex flex-col md:flex-row items-center gap-6">
+          <div className="md:w-1/2">
+            <h1 className="text-3xl font-bold mb-2">
+              Start Your Consultation
+            </h1>
+            <p className="text-muted-foreground">
+              Fill in your details to get started with your telehealth consultation.
+            </p>
+          </div>
+          <div className="md:w-1/2 flex justify-center">
+            <div className="relative w-full max-w-md rounded-lg overflow-hidden shadow-lg">
+              <img 
+                src="/telehealth-consultation.svg" 
+                alt="Doctor consulting with patient online" 
+                className="w-full h-auto object-cover"
+              />
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
+                <p className="text-white text-sm font-medium">Connect with healthcare professionals from anywhere</p>
+              </div>
+            </div>
+          </div>
         </div>
         
         {/* Progress Steps */}

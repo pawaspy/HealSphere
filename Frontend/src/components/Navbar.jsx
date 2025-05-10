@@ -1,24 +1,88 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
+import { Menu, X, User, Moon, Sun, LogOut, UserCircle } from "lucide-react";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userRole, setUserRole] = useState(null); // 'patient' or 'doctor'
   const location = useLocation();
   const navigate = useNavigate();
   
   const isActive = (path) => location.pathname === path;
+  
+  // Check if user is logged in (in a real app, this would use authentication)
+  useEffect(() => {
+    // Simulate checking auth status
+    const checkAuth = () => {
+      // Check localStorage for authentication state
+      const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
+      const role = localStorage.getItem("userRole");
+      const username = localStorage.getItem("username");
+      
+      if (isAuthenticated) {
+        setIsLoggedIn(true);
+        setUserRole(role);
+      } else {
+        setIsLoggedIn(false);
+        setUserRole(null);
+      }
+    };
+    
+    checkAuth();
+  }, [location.pathname]);
+  
+  const toggleDarkMode = () => {
+    setDarkMode(!darkMode);
+    // In a real app, you'd update the class on the document element
+    if (darkMode) {
+      document.documentElement.classList.remove('dark');
+    } else {
+      document.documentElement.classList.add('dark');
+    }
+  };
+  
+  const handleLogout = () => {
+    // Clear authentication state from localStorage
+    localStorage.removeItem("isAuthenticated");
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("username");
+    
+    setIsLoggedIn(false);
+    setUserRole(null);
+    navigate("/");
+  };
+  
+  const getDashboardLink = () => {
+    if (userRole === 'doctor') {
+      return "/doctor-dashboard";
+    } else if (userRole === 'patient') {
+      return "/patient-dashboard";
+    }
+    return "/";
+  };
   
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <div className="flex items-center">
           <Link to="/" className="flex items-center">
-            <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold mr-2">
-              C
-            </div>
-            <span className="font-bold text-lg">CareFromAnywhere</span>
+            <img 
+              src="/telehealth-logo.svg" 
+              alt="TeleHealth Logo" 
+              className="h-8 w-8 mr-2"
+            />
+            <span className="font-bold text-lg">TeleHealth</span>
           </Link>
         </div>
         
@@ -57,12 +121,76 @@ const Navbar = () => {
             FAQ
           </Link>
           
-          <Button 
-            variant="default" 
-            onClick={() => navigate("/start-consultation")}
-          >
-            Start Consultation
-          </Button>
+          {isLoggedIn ? (
+            <div className="flex items-center space-x-4">
+              {userRole !== 'doctor' && (
+                <Button 
+                  variant="default" 
+                  onClick={() => navigate("/start-consultation")}
+                >
+                  Start Consultation
+                </Button>
+              )}
+              
+              <Button variant="ghost" size="icon" onClick={toggleDarkMode}>
+                {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              </Button>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <User className="h-4 w-4" />
+                    </div>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">My Account</p>
+                      <p className="text-xs leading-none text-muted-foreground">
+                        {userRole === 'doctor' ? 'Doctor' : 'Patient'}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate(getDashboardLink())}>
+                    <UserCircle className="mr-2 h-4 w-4" />
+                    <span>Dashboard</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/profile")}>
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Profile</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Log out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          ) : (
+            <div className="flex items-center space-x-4">
+              <Button variant="ghost" size="icon" onClick={toggleDarkMode}>
+                {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              </Button>
+              
+              <Button 
+                variant="outline"
+                onClick={() => navigate("/login")}
+              >
+                Login
+              </Button>
+              
+              <Button 
+                variant="default" 
+                onClick={() => navigate("/signup")}
+              >
+                Sign Up
+              </Button>
+            </div>
+          )}
         </nav>
         
         {/* Mobile Menu Button */}
@@ -112,15 +240,76 @@ const Navbar = () => {
               FAQ
             </Link>
             
-            <Button 
-              className="w-full"
-              onClick={() => {
-                navigate("/start-consultation");
-                setIsMenuOpen(false);
-              }}
-            >
-              Start Consultation
-            </Button>
+            <div className="flex items-center justify-between pt-2 border-t">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={toggleDarkMode}
+              >
+                {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              </Button>
+              
+              {isLoggedIn ? (
+                <div className="flex space-x-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      navigate(getDashboardLink());
+                      setIsMenuOpen(false);
+                    }}
+                  >
+                    Dashboard
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    onClick={() => {
+                      handleLogout();
+                      setIsMenuOpen(false);
+                    }}
+                  >
+                    Logout
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex space-x-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      navigate("/login");
+                      setIsMenuOpen(false);
+                    }}
+                  >
+                    Login
+                  </Button>
+                  <Button 
+                    variant="default" 
+                    size="sm"
+                    onClick={() => {
+                      navigate("/signup");
+                      setIsMenuOpen(false);
+                    }}
+                  >
+                    Sign Up
+                  </Button>
+                </div>
+              )}
+            </div>
+            
+            {/* Only show Start Consultation button if not a doctor */}
+            {(!isLoggedIn || userRole !== 'doctor') && (
+              <Button 
+                className="w-full mt-2"
+                onClick={() => {
+                  navigate("/start-consultation");
+                  setIsMenuOpen(false);
+                }}
+              >
+                Start Consultation
+              </Button>
+            )}
           </div>
         </div>
       )}
