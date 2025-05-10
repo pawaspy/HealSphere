@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pawaspy/VitaReach/api"
@@ -13,36 +14,81 @@ import (
 )
 
 func main() {
+	// Try loading config from file first
 	config, err := util.LoadConfig(".")
-
+	
+	// If file loading fails, use environment variables
 	if err != nil {
-		log.Info().Msg("Cannot open the config file")
+		log.Info().Msg("Config file not found, using environment variables")
+		
+		// Parse token duration with fallback
+		tokenDuration := 24 * time.Hour
+		if os.Getenv("TOKEN_DURATION") != "" {
+			parsed, err := time.ParseDuration(os.Getenv("TOKEN_DURATION"))
+			if err == nil {
+				tokenDuration = parsed
+			}
+		}
+		
+		// Get HTTP address with port from environment
+		httpAddress := os.Getenv("HTTP_ADDRESS")
+		if httpAddress == "" {
+			// Use PORT environment variable provided by Render
+			if port := os.Getenv("PORT"); port != "" {
+				httpAddress = "0.0.0.0:" + port
+			} else {
+				httpAddress = "0.0.0.0:3000" // Default fallback
+			}
+		}
+		
+		// Create config from environment variables
+		config = util.Config{
+			Environment:       os.Getenv("ENVIRONMENT"),
+			DBSource:          os.Getenv("DB_SOURCE"),
+			HTTPAddress:       httpAddress,
+			TokenSymmetricKey: os.Getenv("TOKEN_SYMMETRIC_KEY"),
+			TokenDuration:     tokenDuration,
+		}
+		
+		log.Info().
+			Str("environment", config.Environment).
+			Str("httpAddress", config.HTTPAddress).
+			Msg("Config loaded from environment variables")
 	}
 
 	if config.Environment == "development" {
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	}
 
-	connPool, err := pgxpool.New(context.Background(), config.DBSource)
+	// Validate minimum required configuration
+	if config.DBSource == "" {
+		log.Fatal().Msg("Database connection string is required")
+	}
+	
+	if config.TokenSymmetricKey == "" {
+		log.Fatal().Msg("Token symmetric key is required")
+	}
 
+	log.Info().Msg("Connecting to database...")
+	connPool, err := pgxpool.New(context.Background(), config.DBSource)
 	if err != nil {
-		log.Info().Msg("Cannot connect to db")
+		log.Fatal().Err(err).Msg("Cannot connect to database")
 	}
 
 	store := db.NewStore(connPool)
-
 	runGinServer(config, store)
 }
 
 func runGinServer(config util.Config, store *db.Store) {
+	log.Info().Msg("Initializing server...")
 	server, err := api.NewServer(config, *store)
-
 	if err != nil {
-		log.Info().Msg("cannot start server")
+		log.Fatal().Err(err).Msg("Cannot create server")
 	}
 
+	log.Info().Str("address", config.HTTPAddress).Msg("Starting HTTP server")
 	err = server.Start(config.HTTPAddress)
 	if err != nil {
-		log.Info().Msg("Cannot start the server")
+		log.Fatal().Err(err).Msg("Cannot start server")
 	}
 }
