@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 const initialMessages = [
   {
     id: 1,
-    text: "👋 Hi there! I'm your CareFromAnywhere virtual assistant. How can I help you today?",
+    text: "👋 Hi there! I'm your TeleHealth virtual assistant. How can I help you today?",
     isBot: true,
   },
 ];
