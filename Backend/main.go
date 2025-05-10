@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"time"
 
@@ -30,15 +31,14 @@ func main() {
 			}
 		}
 		
-		// Get HTTP address with port from environment
+		// Get HTTP address - FIXED PORT HANDLING
 		httpAddress := os.Getenv("HTTP_ADDRESS")
 		if httpAddress == "" {
-			// Use PORT environment variable provided by Render
-			if port := os.Getenv("PORT"); port != "" {
-				httpAddress = "0.0.0.0:" + port
-			} else {
-				httpAddress = "0.0.0.0:3000" // Default fallback
+			port := os.Getenv("PORT")
+			if port == "" {
+				port = "3000" // Default fallback port
 			}
+			httpAddress = fmt.Sprintf("0.0.0.0:%s", port)
 		}
 		
 		// Create config from environment variables
