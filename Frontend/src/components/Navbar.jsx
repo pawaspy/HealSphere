@@ -10,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import AnimatedAvatar from "@/components/AnimatedAvatar";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -138,10 +139,12 @@ const Navbar = () => {
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                      <User className="h-4 w-4" />
-                    </div>
+                  <Button variant="ghost" className="relative p-0 h-10 w-10 rounded-full">
+                    <AnimatedAvatar 
+                      name={localStorage.getItem("username")} 
+                      size="md" 
+                      className="shadow-md hover:shadow-lg transition-shadow"
+                    />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
@@ -251,6 +254,13 @@ const Navbar = () => {
               
               {isLoggedIn ? (
                 <div className="flex space-x-2">
+                  <div className="flex items-center mr-2">
+                    <AnimatedAvatar 
+                      name={localStorage.getItem("username")} 
+                      size="sm" 
+                      className="shadow-md"
+                    />
+                  </div>
                   <Button 
                     variant="outline" 
                     size="sm"

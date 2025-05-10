@@ -15,10 +15,23 @@ import {
   Stethoscope, 
   Clock,
   Save,
-  ArrowLeft
+  ArrowLeft,
+  Trash2,
+  AlertCircle
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { authApi } from "@/utils/api";
+import AnimatedAvatar from "@/components/AnimatedAvatar";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -26,6 +39,8 @@ const Profile = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [userRole, setUserRole] = useState(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [userData, setUserData] = useState({
     username: "",
     name: "",
@@ -57,29 +72,36 @@ const Profile = () => {
     const username = localStorage.getItem("username");
     setUserRole(role);
 
-    // In a real app, you would fetch user data from the database
-    // For now, we'll simulate it with mock data
-    if (role === "doctor") {
-      setUserData({
-        username: username || "dr.sharma",
-        name: "Dr. Priya Sharma",
-        email: "priya.sharma@gmail.com",
-        phone: "9876543210",
-        gender: "Female",
-        specialization: "Cardiology",
-        qualification: "MBBS, MD",
-        experience: "8"
-      });
-    } else {
-      setUserData({
-        username: username || "rajesh.kumar",
-        name: "Rajesh Kumar",
-        email: "rajesh.kumar@gmail.com",
-        phone: "9876543210",
-        age: "34",
-        gender: "Male"
-      });
+    // Check if delete dialog should be shown (from URL query param)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('showDeleteDialog') === 'true') {
+      setIsDeleteDialogOpen(true);
     }
+
+    // Fetch user profile data from API
+    const fetchUserProfile = async () => {
+      try {
+        setIsLoading(true);
+        const profileFunction = role === "doctor" 
+          ? authApi.getDoctorProfile 
+          : authApi.getPatientProfile;
+        
+        const userData = await profileFunction();
+        setUserData(userData);
+      } catch (error) {
+        console.error("Error fetching profile:", error);
+        toast({
+          title: "Profile Error",
+          description: "Failed to load your profile information",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    // Always fetch the profile data from the API
+    fetchUserProfile();
   }, [navigate, toast]);
 
   const handleChange = (e) => {
@@ -87,19 +109,59 @@ const Profile = () => {
     setUserData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setIsLoading(true);
     
-    // In a real app, you would save the data to the database
-    // For now, we'll just simulate a successful update
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      // Call the appropriate API based on user role
+      const updateFunction = userRole === "doctor" 
+        ? authApi.updateDoctorProfile 
+        : authApi.updatePatientProfile;
+      
+      // Prepare the data based on role
+      let data = {
+        name: userData.name,
+        email: userData.email,
+        phone: userData.phone,
+        gender: userData.gender,
+      };
+      
+      // Add role-specific fields
+      if (userRole === "doctor") {
+        data = {
+          ...data,
+          specialization: userData.specialization,
+          qualification: userData.qualification,
+          experience: parseInt(userData.experience)
+        };
+      } else {
+        data = {
+          ...data,
+          age: parseInt(userData.age)
+        };
+      }
+      
+      // Make the API call to update profile
+      const response = await updateFunction(data);
+      
+      // Update local state with the response data
+      setUserData(response);
       setIsEditing(false);
+      
       toast({
         title: "Profile Updated",
         description: "Your profile has been updated successfully",
       });
-    }, 1000);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      toast({
+        title: "Update Failed",
+        description: error.message || "Failed to update your profile",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const goBack = () => {
@@ -107,6 +169,46 @@ const Profile = () => {
       navigate("/doctor-dashboard");
     } else {
       navigate("/patient/dashboard");
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setIsDeletingAccount(true);
+    
+    try {
+      // Call the appropriate API based on user role
+      const deleteFunction = userRole === "doctor" 
+        ? authApi.deleteDoctorAccount 
+        : authApi.deletePatientAccount;
+      
+      // Make the API call to delete account
+      await deleteFunction();
+      
+      // Clear user data from localStorage
+      localStorage.removeItem("isAuthenticated");
+      localStorage.removeItem("userRole");
+      localStorage.removeItem("username");
+      localStorage.removeItem("token");
+      
+      setIsDeleteDialogOpen(false);
+      
+      toast({
+        title: "Account Deleted",
+        description: "Your account has been permanently deleted.",
+        variant: "destructive",
+      });
+      
+      // Redirect to home page
+      navigate("/");
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      setIsDeletingAccount(false);
+      
+      toast({
+        title: "Error",
+        description: "Failed to delete your account. Please try again later.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -129,13 +231,26 @@ const Profile = () => {
                 <CardTitle className="text-2xl">My Profile</CardTitle>
                 <CardDescription>View and manage your personal information</CardDescription>
               </div>
-              <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
-                <User className="h-10 w-10" />
+              <div className="w-20 h-20 flex items-center justify-center">
+                <AnimatedAvatar 
+                  name={userData.name || localStorage.getItem("username")} 
+                  size="2xl" 
+                  className="shadow-lg"
+                />
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="flex justify-end">
+            <div className="flex justify-between">
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setIsDeleteDialogOpen(true)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete Account
+              </Button>
+              
               <Button 
                 variant={isEditing ? "default" : "outline"} 
                 onClick={() => isEditing ? handleSave() : setIsEditing(true)}
@@ -313,6 +428,38 @@ const Profile = () => {
             )}
           </CardFooter>
         </Card>
+        
+        {/* Delete Account Confirmation Dialog */}
+        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center text-destructive">
+                <AlertCircle className="mr-2 h-5 w-5" />
+                Delete Account
+              </DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete your account? This action cannot be undone
+                and all your data will be permanently removed.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="flex space-x-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setIsDeleteDialogOpen(false)}
+                disabled={isDeletingAccount}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteAccount}
+                disabled={isDeletingAccount}
+              >
+                {isDeletingAccount ? "Deleting..." : "Delete Account"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </main>
       <Footer />
     </>

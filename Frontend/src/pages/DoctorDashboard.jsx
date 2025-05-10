@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -22,7 +22,8 @@ import {
   LogOut,
   UserCircle,
   UserX,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -33,6 +34,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { appointmentsApi } from "@/utils/api";
+import AnimatedAvatar from "@/components/AnimatedAvatar";
 
 // Mock data for appointments
 const todayAppointments = [
@@ -78,63 +81,141 @@ const todayAppointments = [
   }
 ];
 
-// Mock data for recent patients
-const recentPatients = [
-  {
-    id: 101,
-    name: "Deepak Kumar",
-    age: 45,
-    lastVisit: "Yesterday",
-    condition: "Diabetes Type 2",
-    isOnline: false,
-  },
-  {
-    id: 102,
-    name: "Meera Reddy",
-    age: 32,
-    lastVisit: "2 days ago",
-    condition: "Pregnancy (2nd trimester)",
-    isOnline: true,
-  },
-  {
-    id: 103,
-    name: "Arjun Nair",
-    age: 28,
-    lastVisit: "3 days ago",
-    condition: "Anxiety disorder",
-    isOnline: false,
-  },
-  {
-    id: 104,
-    name: "Sanya Malhotra",
-    age: 19,
-    lastVisit: "1 week ago",
-    condition: "Seasonal allergies",
-    isOnline: true,
-  }
-];
-
 const DoctorDashboard = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [darkMode, setDarkMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [appointments, setAppointments] = useState([]);
+  const [isLoadingAppointments, setIsLoadingAppointments] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [isAppointmentDialogOpen, setIsAppointmentDialogOpen] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  // Simulated doctor data - in a real app this would come from authentication
-  const doctorData = {
+  // Doctor profile data
+  const [doctorData, setDoctorData] = useState({
     name: localStorage.getItem("username") || "Dr. Arun Mehta",
-    specialty: "Cardiology",
-    totalPatients: 248,
-    totalAppointments: 1240,
+    specialty: "General Medicine",
+    totalPatients: 0,
+    totalAppointments: 0,
     rating: 4.8
-  };
+  });
+  
+  // Fetch appointments
+  const fetchAppointments = useCallback(async () => {
+    if (activeTab === "appointments" || activeTab === "dashboard") {
+      setIsLoadingAppointments(true);
+      try {
+        // Get all appointments for the current doctor
+        let response;
+        if (activeTab === "dashboard") {
+          response = await appointmentsApi.listTodayDoctorAppointments();
+        } else {
+          response = await appointmentsApi.listDoctorAppointments();
+        }
+        
+        // Make sure response is an array before setting state
+        if (Array.isArray(response)) {
+          console.log(`Loaded ${response.length} appointments for doctor`);
+          setAppointments(response);
+          
+          // Update stats
+          const totalPatients = new Set(response.map(appt => appt.patient_id)).size;
+          setDoctorData(prev => ({
+            ...prev,
+            totalPatients,
+            totalAppointments: response.length
+          }));
+        } else {
+          console.warn("Invalid appointments data format. Expected array but got:", typeof response);
+          
+          // Try direct fetch as fallback
+          try {
+            const token = localStorage.getItem('token');
+            const endpoint = activeTab === "dashboard" ? 
+              '/doctors/appointments/today' : '/doctors/appointments';
+              
+            const directResponse = await fetch(endpoint, {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+            
+            if (directResponse.ok) {
+              const data = await directResponse.json();
+              if (Array.isArray(data)) {
+                console.log(`Loaded ${data.length} appointments via direct fetch`);
+                setAppointments(data);
+              } else {
+                console.warn("Direct fetch returned invalid format:", typeof data);
+                setAppointments([]);
+              }
+            } else {
+              console.warn("Direct fetch failed with status:", directResponse.status);
+              setAppointments([]);
+            }
+          } catch (directError) {
+            console.error("Direct fetch error:", directError);
+            setAppointments([]);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching appointments:", error);
+        
+        // Try with direct fetch as fallback after error
+        try {
+          const token = localStorage.getItem('token');
+          const endpoint = activeTab === "dashboard" ? 
+            '/doctors/appointments/today' : '/doctors/appointments';
+            
+          const directResponse = await fetch(endpoint, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (directResponse.ok) {
+            const data = await directResponse.json();
+            if (Array.isArray(data)) {
+              console.log(`Loaded ${data.length} appointments via direct fetch after error`);
+              setAppointments(data);
+            } else {
+              setAppointments([]);
+            }
+          } else {
+            setAppointments([]);
+          }
+        } catch (directError) {
+          console.error("Direct fetch error after initial error:", directError);
+          setAppointments([]);
+        }
+      } finally {
+        setIsLoadingAppointments(false);
+      }
+    }
+  }, [activeTab]);
+
+  // Refetch appointments when tab changes
+  useEffect(() => {
+    fetchAppointments();
+  }, [activeTab, fetchAppointments]);
+  
+  // Filter appointments for today
+  const todayAppointments = appointments.filter(appointment => {
+    const appointmentDate = new Date(appointment.appointment_date).toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0];
+    return appointmentDate === today && appointment.status === "upcoming";
+  });
   
   // Filter appointments based on search query
-  const filteredAppointments = todayAppointments.filter(appointment => 
-    appointment.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    appointment.symptoms.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredAppointments = useMemo(() => {
+    return appointments.filter(appointment => 
+      (appointment.patient_name && appointment.patient_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (appointment.symptoms && appointment.symptoms.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (appointment.appointment_date && appointment.appointment_date.includes(searchQuery.toLowerCase())) ||
+      (appointment.appointment_time && appointment.appointment_time.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+  }, [appointments, searchQuery]);
   
   // Check authentication and show notification for upcoming appointments
   useEffect(() => {
@@ -158,7 +239,7 @@ const DoctorDashboard = () => {
       setTimeout(() => {
         toast({
           title: "Upcoming Appointment",
-          description: `${nextAppointment.patientName} at ${nextAppointment.time}`,
+          description: `${nextAppointment.patient_name} at ${nextAppointment.appointment_time}`,
           duration: 5000,
         });
       }, 3000);
@@ -186,6 +267,32 @@ const DoctorDashboard = () => {
     localStorage.removeItem("username");
     
     navigate("/login");
+  };
+  
+  // Extract unique patients from appointments
+  const recentPatients = appointments
+    .filter((appointment, index, self) => {
+      // Keep only the first occurrence of each patient_id
+      return index === self.findIndex(a => a.patient_id === appointment.patient_id);
+    })
+    .map(appointment => ({
+      id: appointment.patient_id,
+      name: appointment.patient_name,
+      lastVisit: new Date(appointment.appointment_date).toLocaleDateString(),
+      condition: appointment.symptoms
+    }))
+    .slice(0, 5); // Just show the first 5 patients
+
+  // Format date for display
+  const formatDate = (dateString) => {
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    return new Date(dateString).toLocaleDateString(undefined, options);
+  };
+
+  // Check if a date is today
+  const isToday = (dateString) => {
+    const today = new Date().toISOString().split('T')[0];
+    return dateString === today;
   };
   
   return (
@@ -289,10 +396,12 @@ const DoctorDashboard = () => {
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <User className="h-4 w-4" />
-                  </div>
+                <Button variant="ghost" className="relative p-0 h-10 w-10 rounded-full">
+                  <AnimatedAvatar 
+                    name={doctorData.name} 
+                    size="md" 
+                    className="shadow-md hover:shadow-lg transition-shadow"
+                  />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end" forceMount>
@@ -308,6 +417,13 @@ const DoctorDashboard = () => {
                 <DropdownMenuItem onClick={() => navigate("/profile")}>
                   <UserCircle className="mr-2 h-4 w-4" />
                   <span>Profile</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => navigate("/profile?showDeleteDialog=true")}
+                  className="text-red-500 hover:text-red-600 focus:text-red-600"
+                >
+                  <UserX className="mr-2 h-4 w-4" />
+                  <span>Delete Account</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>
@@ -388,64 +504,72 @@ const DoctorDashboard = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {filteredAppointments.length > 0 ? (
+                  {isLoadingAppointments ? (
+                    <div className="flex justify-center items-center py-10">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      <span className="ml-2">Loading appointments...</span>
+                    </div>
+                  ) : filteredAppointments.length > 0 ? (
                     <div className="space-y-4">
                       {filteredAppointments.map((appointment) => (
-                        <Card key={appointment.id}>
+                        <Card key={appointment.id} className="cursor-pointer hover:border-primary transition-colors">
                           <CardContent className="p-4">
                             <div className="flex justify-between items-start">
                               <div className="flex items-center">
-                                <div className="relative">
-                                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                                    <User className="h-5 w-5" />
-                                  </div>
-                                  {appointment.isOnline && (
-                                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-background"></span>
-                                  )}
-                                </div>
+                                <AnimatedAvatar 
+                                  name={appointment.patient_name} 
+                                  size="md" 
+                                  className="shadow-md"
+                                />
                                 <div className="ml-3">
-                                  <div className="flex items-center">
-                                    <h3 className="font-medium">{appointment.patientName}</h3>
-                                    {appointment.isOnline && (
-                                      <Badge variant="outline" className="ml-2 bg-green-50 text-green-700 border-green-200">
-                                        Online
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  <p className="text-sm text-muted-foreground">{appointment.time}</p>
+                                  <h3 className="font-medium">{appointment.patient_name}</h3>
+                                  <p className="text-sm text-muted-foreground">{appointment.appointment_time}</p>
                                 </div>
                               </div>
-                              <div className="flex items-center space-x-2">
-                                <Button 
-                                  variant="default" 
-                                  size="sm"
-                                  onClick={() => startVideoCall(appointment.id)}
-                                  className="flex items-center"
-                                >
-                                  <Video className="mr-1 h-4 w-4" />
-                                  Start Call
-                                </Button>
-                                <Button variant="outline" size="sm">
-                                  <FileText className="h-4 w-4" />
-                                </Button>
+                              <div className="flex items-center">
+                                <Badge variant={appointment.is_online ? "default" : "outline"}>
+                                  {appointment.is_online ? "Online" : "In-person"}
+                                </Badge>
                               </div>
                             </div>
                             <div className="mt-3">
                               <h4 className="text-sm font-medium">Symptoms:</h4>
                               <p className="text-sm text-muted-foreground">{appointment.symptoms}</p>
                             </div>
+                            <div className="mt-4 flex justify-end">
+                              {appointment.is_online && (
+                                <Button 
+                                  variant="default" 
+                                  size="sm" 
+                                  onClick={() => startVideoCall(appointment.id)}
+                                >
+                                  <Video className="mr-2 h-4 w-4" />
+                                  Start Call
+                                </Button>
+                              )}
+                            </div>
                           </CardContent>
                         </Card>
                       ))}
+                    </div>
+                  ) : searchQuery ? (
+                    <div className="text-center py-10">
+                      <div className="flex justify-center mb-3">
+                        <AlertCircle className="h-10 w-10 text-muted-foreground" />
+                      </div>
+                      <h3 className="text-lg font-medium">No appointments found</h3>
+                      <p className="text-muted-foreground">
+                        No appointments matching "{searchQuery}"
+                      </p>
                     </div>
                   ) : (
                     <div className="text-center py-10">
                       <div className="flex justify-center mb-3">
                         <Calendar className="h-10 w-10 text-muted-foreground" />
                       </div>
-                      <h3 className="text-lg font-medium">No appointments found</h3>
+                      <h3 className="text-lg font-medium">No appointments today</h3>
                       <p className="text-muted-foreground">
-                        {searchQuery ? "Try adjusting your search" : "You have no appointments scheduled for today"}
+                        You have no appointments scheduled for today
                       </p>
                     </div>
                   )}
@@ -465,26 +589,34 @@ const DoctorDashboard = () => {
                   <CardDescription>Recently consulted patients</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {recentPatients.map((patient) => (
-                      <div key={patient.id} className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <div className="relative">
-                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                              <User className="h-5 w-5" />
+                  <div className="space-y-3">
+                    {recentPatients.length > 0 ? (
+                      recentPatients.map((patient) => (
+                        <div key={patient.id} className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <AnimatedAvatar 
+                              name={patient.name} 
+                              size="sm" 
+                              className="shadow-md"
+                            />
+                            <div className="ml-3">
+                              <h3 className="font-medium text-sm">{patient.name}</h3>
+                              <p className="text-xs text-muted-foreground">Last visit: {patient.lastVisit}</p>
                             </div>
-                            {patient.isOnline && (
-                              <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-background"></span>
-                            )}
                           </div>
-                          <div className="ml-3">
-                            <h3 className="font-medium text-sm">{patient.name}</h3>
-                            <p className="text-xs text-muted-foreground">{patient.age} years • {patient.condition}</p>
-                          </div>
+                          <Button variant="ghost" size="sm">
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
                         </div>
-                        <p className="text-xs text-muted-foreground">{patient.lastVisit}</p>
+                      ))
+                    ) : (
+                      <div className="text-center py-8">
+                        <div className="flex justify-center mb-3">
+                          <Users className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                        <p className="text-muted-foreground">No patients yet</p>
                       </div>
-                    ))}
+                    )}
                   </div>
                 </CardContent>
                 <CardFooter className="flex justify-center">

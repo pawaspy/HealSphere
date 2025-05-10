@@ -19,6 +19,7 @@ import DoctorDashboard from "./pages/DoctorDashboard.jsx";
 import VideoCall from "./pages/VideoCall.jsx";
 import PatientDashboard from "./pages/PatientDashboard.jsx";
 import Profile from "./pages/Profile.jsx";
+import BookAppointment from "./pages/BookAppointment.jsx";
 
 const queryClient = new QueryClient();
 
@@ -40,9 +41,11 @@ const App = () => (
           <Route path="/consultation" element={<Consultation />} />
           <Route path="/consultation-summary" element={<ConsultationSummary />} />
           <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
+          <Route path="/patient-dashboard" element={<PatientDashboard />} />
           <Route path="/patient/dashboard" element={<PatientDashboard />} />
           <Route path="/video-call/:appointmentId" element={<VideoCall />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/book-appointment/:doctorUsername" element={<BookAppointment />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         <Chatbot />

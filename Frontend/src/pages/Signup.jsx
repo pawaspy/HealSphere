@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, User, Mail, Phone, CalendarDays, UserRound, GraduationCap, Stethoscope, Clock, AlertCircle } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { authApi, doctorsApi, patientsApi } from "@/utils/api";
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -29,9 +30,74 @@ const Signup = () => {
   const [role, setRole] = useState("patient");
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   
   const navigate = useNavigate();
   const { toast } = useToast();
+  
+  // Debounce function
+  const debounce = (func, delay) => {
+    let timeoutId;
+    return function(...args) {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => func.apply(this, args), delay);
+    };
+  };
+  
+  // Check if username already exists
+  const checkUsername = async (username) => {
+    if (!username || username.length < 3) return;
+    
+    try {
+      setIsCheckingUsername(true);
+      const checkFunction = role === "doctor" 
+        ? doctorsApi.checkUsernameExists 
+        : patientsApi.checkUsernameExists;
+      
+      const response = await checkFunction(username);
+      
+      if (response.exists) {
+        setErrors(prev => ({
+          ...prev,
+          username: "This username is already taken"
+        }));
+      }
+    } catch (error) {
+      console.error("Error checking username:", error);
+    } finally {
+      setIsCheckingUsername(false);
+    }
+  };
+  
+  // Check if email already exists
+  const checkEmail = async (email) => {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+    
+    try {
+      setIsCheckingEmail(true);
+      const checkFunction = role === "doctor" 
+        ? doctorsApi.checkEmailExists 
+        : patientsApi.checkEmailExists;
+      
+      const response = await checkFunction(email);
+      
+      if (response.exists) {
+        setErrors(prev => ({
+          ...prev,
+          email: "This email is already registered"
+        }));
+      }
+    } catch (error) {
+      console.error("Error checking email:", error);
+    } finally {
+      setIsCheckingEmail(false);
+    }
+  };
+  
+  // Create debounced versions of the check functions
+  const debouncedCheckUsername = debounce(checkUsername, 500);
+  const debouncedCheckEmail = debounce(checkEmail, 500);
   
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -47,7 +113,28 @@ const Signup = () => {
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: null }));
     }
+    
+    // Check username and email availability
+    if (name === "username" && value.length >= 3) {
+      debouncedCheckUsername(value);
+    }
+    
+    if (name === "email" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      debouncedCheckEmail(value);
+    }
   };
+  
+  // Reset form data when role changes
+  useEffect(() => {
+    setErrors({});
+    setFormData(prev => ({
+      ...prev,
+      specialization: "",
+      qualification: "",
+      experience: "",
+      age: "",
+    }));
+  }, [role]);
   
   const handleSelectChange = (name, value) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -130,7 +217,7 @@ const Signup = () => {
     return Object.keys(newErrors).length === 0;
   };
   
-  const handleSignup = (e) => {
+  const handleSignup = async (e) => {
     e.preventDefault();
     
     // Validate form before submission
@@ -145,17 +232,51 @@ const Signup = () => {
     
     setIsLoading(true);
     
-    // Here you would typically make an API call to register the user
-    // For now, we'll simulate a successful registration after a delay
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      let response;
       
-      // Store authentication state in localStorage
+      // Call the appropriate registration API based on user role
+      if (role === "doctor") {
+        response = await authApi.registerDoctor({
+          username: formData.username,
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          phone: formData.phone,
+          gender: formData.gender,
+          specialization: formData.specialization,
+          qualification: formData.qualification,
+          experience: parseInt(formData.experience),
+        });
+      } else {
+        response = await authApi.registerPatient({
+          username: formData.username,
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          phone: formData.phone,
+          gender: formData.gender,
+          age: parseInt(formData.age),
+        });
+      }
+      
+      // Now login the user
+      const loginFunction = role === "doctor" 
+        ? authApi.loginDoctor 
+        : authApi.loginPatient;
+      
+      const loginResponse = await loginFunction({
+        username: formData.username,
+        password: formData.password
+      });
+      
+      // Store authentication data in localStorage
       localStorage.setItem("isAuthenticated", "true");
       localStorage.setItem("userRole", role);
       localStorage.setItem("username", formData.username);
+      localStorage.setItem("token", loginResponse.access_token);
       
-      // Successful registration simulation
+      // Successful registration
       toast({
         title: "Registration Successful",
         description: "Your account has been created successfully!",
@@ -167,7 +288,16 @@ const Signup = () => {
       } else {
         navigate("/patient/dashboard");
       }
-    }, 1500);
+    } catch (error) {
+      console.error("Signup error:", error);
+      toast({
+        title: "Registration Failed",
+        description: error.message || "An error occurred during registration",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   const specializations = [

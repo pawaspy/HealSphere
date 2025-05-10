@@ -136,8 +136,16 @@ const StartConsultation = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     // In a real application, this would save the form data to a database
-    // and then redirect to payment page
-    navigate("/payment", { state: { formData } });
+    // but now we'll redirect to the patient dashboard with doctors tab active
+    // to ensure a consistent booking flow
+    
+    // Store the specialty selection in local storage for pre-selection
+    if (formData.specialty) {
+      localStorage.setItem("selectedSpecialty", formData.specialty);
+    }
+    
+    // Navigate to patient dashboard with a query parameter to activate doctors tab
+    navigate("/patient-dashboard?tab=doctors");
   };
   
   return (

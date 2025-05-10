@@ -73,16 +73,16 @@ const Hero = () => {
                     <circle cx="200" cy="220" r="80" fill="#10b981" opacity="0.2" />
                     <circle cx="200" cy="200" r="60" fill="#10b981" />
                     <path d="M200,160 C180,160 165,175 165,195 C165,215 180,230 200,230 C220,230 235,215 235,195 C235,175 220,160 200,160 Z" fill="#f8fafc" />
-                    <path d="M165,270 C165,240 180,230 200,230 C220,230 235,240 235,270" stroke="#f8fafc" stroke-width="10" fill="none" />
+                    <path d="M165,270 C165,240 180,230 200,230 C220,230 235,240 235,270" stroke="#f8fafc" strokeWidth="10" fill="none" />
                     
                     {/* Doctor's Stethoscope */}
-                    <path d="M240,180 C260,180 270,200 270,220 C270,240 260,250 240,250" stroke="#f8fafc" stroke-width="4" fill="none" />
+                    <path d="M240,180 C260,180 270,200 270,220 C270,240 260,250 240,250" stroke="#f8fafc" strokeWidth="4" fill="none" />
                     <circle cx="240" cy="250" r="8" fill="#f8fafc" />
                     
                     {/* Doctor's Name Tag */}
                     <rect x="150" y="290" width="100" height="30" rx="5" fill="#f1f5f9" className="dark:fill-gray-700" />
-                    <text x="200" y="310" font-family="Arial" font-size="14" text-anchor="middle" fill="#0f172a" className="dark:fill-white">Dr. Arun Mehta</text>
-                    <text x="200" y="330" font-family="Arial" font-size="12" text-anchor="middle" fill="#64748b" className="dark:fill-gray-300">Cardiologist</text>
+                    <text x="200" y="310" fontFamily="Arial" fontSize="14" textAnchor="middle" fill="#0f172a" className="dark:fill-white">Dr. Arun Mehta</text>
+                    <text x="200" y="330" fontFamily="Arial" fontSize="12" textAnchor="middle" fill="#64748b" className="dark:fill-gray-300">Cardiologist</text>
                     
                     {/* Patient's Side */}
                     <rect x="450" y="100" width="300" height="400" rx="20" fill="#e2e8f0" className="dark:fill-gray-700" />
@@ -92,41 +92,41 @@ const Hero = () => {
                     <circle cx="600" cy="220" r="80" fill="#f59e0b" opacity="0.2" />
                     <circle cx="600" cy="200" r="60" fill="#f59e0b" opacity="0.8" />
                     <path d="M600,160 C580,160 565,175 565,195 C565,215 580,230 600,230 C620,230 635,215 635,195 C635,175 620,160 600,160 Z" fill="#f8fafc" />
-                    <path d="M565,270 C565,240 580,230 600,230 C620,230 635,240 635,270" stroke="#f8fafc" stroke-width="10" fill="none" />
+                    <path d="M565,270 C565,240 580,230 600,230 C620,230 635,240 635,270" stroke="#f8fafc" strokeWidth="10" fill="none" />
                     
                     {/* Patient's Name */}
-                    <text x="600" y="330" font-family="Arial" font-size="14" text-anchor="middle" fill="#0f172a" className="dark:fill-white">Priya Sharma</text>
-                    <text x="600" y="350" font-family="Arial" font-size="12" text-anchor="middle" fill="#64748b" className="dark:fill-gray-300">Patient</text>
+                    <text x="600" y="330" fontFamily="Arial" fontSize="14" textAnchor="middle" fill="#0f172a" className="dark:fill-white">Priya Sharma</text>
+                    <text x="600" y="350" fontFamily="Arial" fontSize="12" textAnchor="middle" fill="#64748b" className="dark:fill-gray-300">Patient</text>
                     
                     {/* Connection Line */}
-                    <path d="M350,250 L450,250" stroke="#10b981" stroke-width="4" stroke-dasharray="10,5" />
+                    <path d="M350,250 L450,250" stroke="#10b981" strokeWidth="4" strokeDasharray="10,5" />
                     <circle cx="350" cy="250" r="10" fill="#10b981" />
                     <circle cx="450" cy="250" r="10" fill="#10b981" />
                     
                     {/* Medical Icons */}
                     <circle cx="120" cy="400" r="20" fill="#10b981" opacity="0.2" />
-                    <path d="M120,390 L120,410 M110,400 L130,400" stroke="#10b981" stroke-width="3" stroke-linecap="round" />
+                    <path d="M120,390 L120,410 M110,400 L130,400" stroke="#10b981" strokeWidth="3" strokeLinecap="round" />
                     
                     <circle cx="200" cy="400" r="20" fill="#10b981" opacity="0.2" />
-                    <path d="M190,390 L210,410 M210,390 L190,410" stroke="#10b981" stroke-width="3" stroke-linecap="round" />
+                    <path d="M190,390 L210,410 M210,390 L190,410" stroke="#10b981" strokeWidth="3" strokeLinecap="round" />
                     
                     <circle cx="280" cy="400" r="20" fill="#10b981" opacity="0.2" />
-                    <path d="M270,400 L290,400 M280,400 C280,390 285,380 290,380" stroke="#10b981" stroke-width="3" stroke-linecap="round" fill="none" />
+                    <path d="M270,400 L290,400 M280,400 C280,390 285,380 290,380" stroke="#10b981" strokeWidth="3" strokeLinecap="round" fill="none" />
                     
                     {/* Health Metrics on Patient Side */}
                     <rect x="520" y="400" width="160" height="60" rx="5" fill="#f1f5f9" className="dark:fill-gray-700" />
-                    <text x="530" y="420" font-family="Arial" font-size="12" fill="#64748b" className="dark:fill-gray-300">Heart Rate: 72 bpm</text>
-                    <text x="530" y="440" font-family="Arial" font-size="12" fill="#64748b" className="dark:fill-gray-300">Blood Pressure: 120/80</text>
-                    <text x="530" y="460" font-family="Arial" font-size="12" fill="#64748b" className="dark:fill-gray-300">Temperature: 37°C</text>
+                    <text x="530" y="420" fontFamily="Arial" fontSize="12" fill="#64748b" className="dark:fill-gray-300">Heart Rate: 72 bpm</text>
+                    <text x="530" y="440" fontFamily="Arial" fontSize="12" fill="#64748b" className="dark:fill-gray-300">Blood Pressure: 120/80</text>
+                    <text x="530" y="460" fontFamily="Arial" fontSize="12" fill="#64748b" className="dark:fill-gray-300">Temperature: 37°C</text>
                     
                     {/* TeleHealth Logo */}
                     <circle cx="400" cy="80" r="30" fill="#10b981" />
-                    <text x="400" y="85" font-family="Arial" font-size="12" font-weight="bold" text-anchor="middle" fill="#ffffff">TH</text>
-                    <text x="400" y="120" font-family="Arial" font-size="16" font-weight="bold" text-anchor="middle" fill="#0f172a" className="dark:fill-white">TeleHealth</text>
+                    <text x="400" y="85" fontFamily="Arial" fontSize="12" fontWeight="bold" textAnchor="middle" fill="#ffffff">TH</text>
+                    <text x="400" y="120" fontFamily="Arial" fontSize="16" fontWeight="bold" textAnchor="middle" fill="#0f172a" className="dark:fill-white">TeleHealth</text>
                     
                     {/* Video Call Interface Elements */}
                     <rect x="350" y="500" width="100" height="30" rx="15" fill="#10b981" />
-                    <text x="400" y="520" font-family="Arial" font-size="12" text-anchor="middle" fill="#ffffff">CONNECTED</text>
+                    <text x="400" y="520" fontFamily="Arial" fontSize="12" textAnchor="middle" fill="#ffffff">CONNECTED</text>
                   </svg>
                 </div>
               </div>

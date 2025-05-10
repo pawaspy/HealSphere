@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, User, Lock, AlertCircle } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { authApi } from "@/utils/api";
 
 const Login = () => {
   const [username, setUsername] = useState("");
@@ -37,7 +38,7 @@ const Login = () => {
     return Object.keys(newErrors).length === 0;
   };
   
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     
     // Validate form before submission
@@ -47,17 +48,26 @@ const Login = () => {
     
     setIsLoading(true);
     
-    // Here you would typically make an API call to authenticate the user
-    // For now, we'll simulate a successful login after a delay
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      // Call the appropriate login API based on role
+      const loginFunction = role === "doctor" 
+        ? authApi.loginDoctor 
+        : authApi.loginPatient;
       
-      // Store authentication state in localStorage
+      const response = await loginFunction({
+        username,
+        password
+      });
+      
+      // Store authentication data in localStorage
       localStorage.setItem("isAuthenticated", "true");
       localStorage.setItem("userRole", role);
       localStorage.setItem("username", username);
+      localStorage.setItem("token", response.access_token);
       
-      // Successful login simulation
+      console.log(`Login successful. Token: ${response.access_token.substring(0, 10)}... Role: ${role}`);
+      
+      // Successful login message
       toast({
         title: "Login Successful",
         description: `Welcome back, ${username}!`,
@@ -69,7 +79,16 @@ const Login = () => {
       } else {
         navigate("/patient/dashboard");
       }
-    }, 1500);
+    } catch (error) {
+      console.error("Login error:", error);
+      toast({
+        title: "Login Failed",
+        description: error.message || "Invalid username or password",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   return (
