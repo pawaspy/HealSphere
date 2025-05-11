@@ -1,14 +1,11 @@
 package api
 
 import (
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
-	"fmt"
-	"math/rand"
+	"bytes"
+	"encoding/json"
+	"io/ioutil"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -25,18 +22,7 @@ type PaymentVerificationRequest struct {
 	RazorpaySignature string `json:"razorpay_signature" binding:"required"`
 }
 
-// Simple Order represents a Razorpay order
-type Order struct {
-	ID     string `json:"id"`
-	Amount int64  `json:"amount"`
-}
-
-// Initialize random seed
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
-
-// createOrder handles the creation of a new payment order
+// createOrder handles the creation of a new payment order by forwarding to the payment server
 func (server *Server) createOrder(ctx *gin.Context) {
 	var req PaymentRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -44,25 +30,44 @@ func (server *Server) createOrder(ctx *gin.Context) {
 		return
 	}
 
-	// Convert amount to paise (smallest currency unit)
-	amountPaise := int64(req.Amount * 100)
-
-	// In a real implementation, you would make an HTTP request to Razorpay's API
-	// For now, we'll simulate the order creation with a dummy order ID
-	randStr := randomString(10)
-	orderID := fmt.Sprintf("order_%s", randStr)
-
-	order := map[string]interface{}{
-		"id":       orderID,
-		"amount":   amountPaise,
-		"currency": "INR",
-		"receipt":  fmt.Sprintf("rcpt_%s", randStr),
+	// Get payment server URL from environment or use default
+	paymentServerURL := os.Getenv("PAYMENT_SERVER_URL")
+	if paymentServerURL == "" {
+		paymentServerURL = "https://vitareach-payment-server.onrender.com"
 	}
 
-	ctx.JSON(http.StatusOK, order)
+	// Forward request to payment server
+	requestBody, err := json.Marshal(req)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	resp, err := http.Post(paymentServerURL+"/create-order", "application/json", bytes.NewBuffer(requestBody))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reach payment server", "details": err.Error()})
+		return
+	}
+	defer resp.Body.Close()
+
+	// Read response from payment server
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	// Forward payment server's response
+	var result map[string]interface{}
+	if err := json.Unmarshal(body, &result); err != nil {
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	ctx.JSON(resp.StatusCode, result)
 }
 
-// verifyPayment handles payment verification
+// verifyPayment handles payment verification by forwarding to the payment server
 func (server *Server) verifyPayment(ctx *gin.Context) {
 	var req PaymentVerificationRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -70,32 +75,39 @@ func (server *Server) verifyPayment(ctx *gin.Context) {
 		return
 	}
 
-	// Get Razorpay key secret from environment variable
-	keySecret := os.Getenv("RAZORPAY_KEY_SECRET")
-	if keySecret == "" {
-		keySecret = "CrhHrTu8aJa3tyRS4ecWvYi7" // Fallback to test key
+	// Get payment server URL from environment or use default
+	paymentServerURL := os.Getenv("PAYMENT_SERVER_URL")
+	if paymentServerURL == "" {
+		paymentServerURL = "https://vitareach-payment-server.onrender.com"
 	}
 
-	// Create the signature
-	data := req.RazorpayOrderID + "|" + req.RazorpayPaymentID
-	h := hmac.New(sha256.New, []byte(keySecret))
-	h.Write([]byte(data))
-	calculatedSignature := hex.EncodeToString(h.Sum(nil))
-
-	// Verify the signature
-	if calculatedSignature == req.RazorpaySignature {
-		ctx.JSON(http.StatusOK, gin.H{"status": "success"})
-	} else {
-		ctx.JSON(http.StatusOK, gin.H{"status": "failure"})
+	// Forward verification request to payment server
+	requestBody, err := json.Marshal(req)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
 	}
-}
 
-// Helper function to generate random string
-func randomString(n int) string {
-	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	b := make([]byte, n)
-	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
+	resp, err := http.Post(paymentServerURL+"/verify", "application/json", bytes.NewBuffer(requestBody))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reach payment server", "details": err.Error()})
+		return
 	}
-	return string(b)
+	defer resp.Body.Close()
+
+	// Read response from payment server
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	// Forward payment server's response
+	var result map[string]interface{}
+	if err := json.Unmarshal(body, &result); err != nil {
+		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	ctx.JSON(resp.StatusCode, result)
 }

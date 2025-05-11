@@ -69,18 +69,25 @@ const Payment = () => {
   const handlePayment = async () => {
     setIsProcessing(true);
     try {
+      console.log("Initializing Razorpay...");
       const res = await initializeRazorpay();
       if (!res) {
+        console.error("Failed to load Razorpay SDK");
         toast({ 
           title: "Error", 
           description: "Razorpay SDK failed to load" 
         });
         return;
       }
+      console.log("Razorpay SDK loaded successfully");
 
-      // Create order - Use the main backend URL
-      const backendUrl = "https://vitareach-backend.onrender.com";
-      const response = await fetch(`${backendUrl}/create-order`, {
+      // Create order - Use payment server URL
+      const paymentServerUrl = "https://vitareach-payment-server.onrender.com";
+      
+      console.log(`Using payment server at: ${paymentServerUrl}`);
+      console.log("Creating order with amount:", 1);
+      
+      const response = await fetch(`${paymentServerUrl}/create-order`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -90,7 +97,14 @@ const Payment = () => {
         }),
       });
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Order creation failed:", errorData);
+        throw new Error(`Failed to create order: ${errorData.error || response.statusText}`);
+      }
+
       const order = await response.json();
+      console.log("Order created successfully:", order);
 
       const options = {
         key: "rzp_test_Pts9yxxuweuA1u",
@@ -99,9 +113,17 @@ const Payment = () => {
         name: "VitaReach",
         description: "Medical Consultation Payment",
         order_id: order.id,
+        prefill: {
+          name: localStorage.getItem('username') || "",
+          email: localStorage.getItem('email') || "",
+        },
+        theme: {
+          color: "#2563eb",
+        },
         handler: async function (response) {
+          console.log("Payment successful, verifying...", response);
           // Verify payment
-          const verifyResponse = await fetch(`${backendUrl}/verify`, {
+          const verifyResponse = await fetch(`${paymentServerUrl}/verify`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -114,8 +136,10 @@ const Payment = () => {
           });
 
           const verifyData = await verifyResponse.json();
+          console.log("Verification response:", verifyData);
 
           if (verifyData.status === "success") {
+            console.log("Payment verification successful");
             toast({ title: "Payment Successful" });
             
             if (appointmentData) {
@@ -130,6 +154,7 @@ const Payment = () => {
                   symptoms: appointmentData.symptoms
                 };
 
+                console.log("Creating appointment with data:", formattedData);
                 const response = await appointmentsApi.createAppointment(formattedData);
                 console.log("Appointment created successfully:", response);
                 
@@ -150,28 +175,23 @@ const Payment = () => {
               navigate("/consultation", { state: { formData } });
             }
           } else {
+            console.error("Payment verification failed:", verifyData);
             toast({ 
               title: "Payment Verification Failed",
-              description: "Please try again or contact support."
+              description: verifyData.reason || "Please try again or contact support."
             });
           }
-        },
-        prefill: {
-          name: localStorage.getItem('username') || "",
-          email: localStorage.getItem('email') || "",
-        },
-        theme: {
-          color: "#2563eb",
-        },
+        }
       };
 
+      console.log("Opening Razorpay payment form with options:", {...options, key: "HIDDEN"});
       const paymentObject = new window.Razorpay(options);
       paymentObject.open();
     } catch (error) {
       console.error("Payment error:", error);
       toast({ 
         title: "Payment Failed",
-        description: "There was an error processing your payment."
+        description: error.message || "There was an error processing your payment."
       });
     } finally {
       setIsProcessing(false);
