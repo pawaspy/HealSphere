@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: vitareach-backend
+    env: go
+    buildCommand: cd Backend && go build -o server .
+    startCommand: cd Backend && ./server
+    healthCheckPath: /test
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: ENVIRONMENT
+        value: production
+      - key: CORS_ALLOWED_ORIGINS
+        value: "https://heal-sphere.vercel.app"
+      - key: CORS_ALLOW_CREDENTIALS
+        value: "true"
+      - key: TOKEN_DURATION
+        value: "24h"
+      - key: TOKEN_SYMMETRIC_KEY
+        sync: false # This should be set in the Render dashboard as a secret
+      - key: DB_SOURCE
+        sync: false # This should be set in the Render dashboard as a secret
+      - key: GEMINI_API_KEY
+        sync: false # This should be set in the Render dashboard as a secret
