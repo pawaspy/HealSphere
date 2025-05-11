@@ -17,11 +17,11 @@ import (
 func main() {
 	// Try loading config from file first
 	config, err := util.LoadConfig(".")
-	
+
 	// If file loading fails, use environment variables
 	if err != nil {
 		log.Info().Msg("Config file not found, using environment variables")
-		
+
 		// Parse token duration with fallback
 		tokenDuration := 24 * time.Hour
 		if os.Getenv("TOKEN_DURATION") != "" {
@@ -30,7 +30,7 @@ func main() {
 				tokenDuration = parsed
 			}
 		}
-		
+
 		// Get HTTP address - FIXED PORT HANDLING
 		httpAddress := os.Getenv("HTTP_ADDRESS")
 		if httpAddress == "" {
@@ -40,7 +40,7 @@ func main() {
 			}
 			httpAddress = fmt.Sprintf("0.0.0.0:%s", port)
 		}
-		
+
 		// Create config from environment variables
 		config = util.Config{
 			Environment:       os.Getenv("ENVIRONMENT"),
@@ -49,11 +49,14 @@ func main() {
 			TokenSymmetricKey: os.Getenv("TOKEN_SYMMETRIC_KEY"),
 			TokenDuration:     tokenDuration,
 			GeminiAPIKey:      os.Getenv("GEMINI_API_KEY"),
+			RazorpayKeyID:     os.Getenv("RAZORPAY_KEY_ID"),
+			RazorpayKeySecret: os.Getenv("RAZORPAY_KEY_SECRET"),
 		}
-		
+
 		log.Info().
 			Str("environment", config.Environment).
 			Str("httpAddress", config.HTTPAddress).
+			Str("razorpayKeyID", config.RazorpayKeyID[:4]+"..."+config.RazorpayKeyID[len(config.RazorpayKeyID)-4:]).
 			Msg("Config loaded from environment variables")
 	}
 
@@ -65,9 +68,13 @@ func main() {
 	if config.DBSource == "" {
 		log.Fatal().Msg("Database connection string is required")
 	}
-	
+
 	if config.TokenSymmetricKey == "" {
 		log.Fatal().Msg("Token symmetric key is required")
+	}
+
+	if config.RazorpayKeyID == "" || config.RazorpayKeySecret == "" {
+		log.Fatal().Msg("Razorpay credentials are required")
 	}
 
 	log.Info().Msg("Connecting to database...")
