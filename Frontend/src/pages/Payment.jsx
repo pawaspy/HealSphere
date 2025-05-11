@@ -79,7 +79,7 @@ const Payment = () => {
       }
 
       // Create order
-      const response = await fetch("http://localhost:5000/create-order", {
+      const response = await fetch("https://vitareach-backend.onrender.com/create-order", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -100,7 +100,7 @@ const Payment = () => {
         order_id: order.id,
         handler: async function (response) {
           // Verify payment
-          const verifyResponse = await fetch("http://localhost:5000/verify", {
+          const verifyResponse = await fetch("https://vitareach-backend.onrender.com/verify", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

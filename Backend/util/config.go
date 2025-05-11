@@ -13,6 +13,8 @@ type Config struct {
 	TokenSymmetricKey string        `mapstructure:"TOKEN_SYMMETRIC_KEY"`
 	TokenDuration     time.Duration `mapstructure:"TOKEN_DURATION"`
 	GeminiAPIKey      string        `mapstructure:"GEMINI_API_KEY"`
+	RazorpayKeyID     string        `mapstructure:"RAZORPAY_KEY_ID"`
+	RazorpayKeySecret string        `mapstructure:"RAZORPAY_KEY_SECRET"`
 }
 
 func LoadConfig(path string) (config Config, err error) {

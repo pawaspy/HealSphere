@@ -61,6 +61,10 @@ func (server *Server) setupRouter() {
 	// Add debug middleware for every request
 	router.Use(debugMiddleware())
 
+	// Payment routes - no auth required
+	router.POST("/create-order", server.createOrder)
+	router.POST("/verify", server.verifyPayment)
+
 	// Add a test route
 	router.GET("/test", func(c *gin.Context) {
 		c.JSON(200, gin.H{"message": "Server is running"})
