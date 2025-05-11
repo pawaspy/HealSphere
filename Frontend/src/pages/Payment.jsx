@@ -115,7 +115,8 @@ const Payment = () => {
             const token = localStorage.getItem('token');
             
             // Use URL formats without trailing slashes
-            const urls = ['/appointments', '/api/appointments', 'https://vitareach-backend.onrender.com/appointments'];
+            const backendUrl = import.meta.env.VITE_API_URL || 'https://vitareach-backend.onrender.com';
+            const urls = ['/appointments', '/api/appointments', `${backendUrl}/appointments`];
             let success = false;
             
             for (const url of urls) {

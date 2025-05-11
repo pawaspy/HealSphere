@@ -2,8 +2,8 @@
  * API utility for making requests to the backend
  */
 
-// Base API URL with proxy prefix
-const API_BASE_URL = '/api';
+// Base API URL with direct connection to backend
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://vitareach-backend.onrender.com';
 
 /**
  * Get the authentication token from localStorage
