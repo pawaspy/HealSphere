@@ -161,6 +161,10 @@ func (server *Server) setupRouter() {
 	prescriptionRoutes.PUT("/:appointment_id", server.updatePrescription)
 	prescriptionRoutes.POST("/:appointment_id/feedback", server.submitFeedback)
 
+	// Add payment routes
+	router.POST("/create-order", server.createOrder)
+	router.POST("/verify", server.verifyPayment)
+
 	server.router = router
 }
 
