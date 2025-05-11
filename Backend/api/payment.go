@@ -101,18 +101,27 @@ func (server *Server) createOrder(ctx *gin.Context) {
 // verifyPayment handles the verification of a Razorpay payment
 func (server *Server) verifyPayment(ctx *gin.Context) {
 	fmt.Println("====== VERIFY PAYMENT ENDPOINT CALLED ======")
+	fmt.Printf("Request Headers: %+v\n", ctx.Request.Header)
+	fmt.Printf("Request Body: %+v\n", ctx.Request.Body)
 
 	var req VerifyPaymentRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		fmt.Printf("Error binding JSON: %v\n", err)
-		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		fmt.Printf("Raw request body: %v\n", ctx.Request.Body)
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid request format",
+			"details": err.Error(),
+		})
 		return
 	}
 
 	fmt.Printf("Received verify payment request: %+v\n", req)
+	fmt.Printf("Using Razorpay Key Secret: %s\n", server.config.RazorpayKeySecret[:4]+"..."+server.config.RazorpayKeySecret[len(server.config.RazorpayKeySecret)-4:])
 
 	// Create signature
 	payload := req.RazorpayOrderID + "|" + req.RazorpayPaymentID
+	fmt.Printf("Signature payload: %s\n", payload)
+
 	signature := hmac.New(sha256.New, []byte(server.config.RazorpayKeySecret))
 	signature.Write([]byte(payload))
 	generatedSignature := hex.EncodeToString(signature.Sum(nil))
@@ -126,6 +135,7 @@ func (server *Server) verifyPayment(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{"status": "success"})
 	} else {
 		fmt.Println("Payment verification failed")
+		fmt.Printf("Signature mismatch - Generated: %s, Received: %s\n", generatedSignature, req.RazorpaySignature)
 		ctx.JSON(http.StatusOK, gin.H{"status": "failure"})
 	}
 }

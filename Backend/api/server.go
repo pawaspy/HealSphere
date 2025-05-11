@@ -36,17 +36,18 @@ func NewServer(config util.Config, store db.Store) (*Server, error) {
 func (server *Server) setupRouter() {
 	router := gin.Default()
 
-	// Setup CORS middleware - more permissive approach
+	// Setup CORS middleware
 	router.Use(func(c *gin.Context) {
 		origin := c.Request.Header.Get("Origin")
 		if origin == "" {
-			origin = "*"
+			origin = "https://heal-sphere.vercel.app"
 		}
 
 		c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, Accept, Origin, Cache-Control, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Expose-Headers", "Content-Length, Content-Range")
 		c.Writer.Header().Set("Access-Control-Max-Age", "86400")
 
 		// Handle preflight requests

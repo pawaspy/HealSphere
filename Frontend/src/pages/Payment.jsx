@@ -53,12 +53,30 @@ const Payment = () => {
   // Initialize Razorpay
   const initializeRazorpay = () => {
     return new Promise((resolve) => {
+      // Add preload link for Razorpay stylesheet
+      const preloadLink = document.createElement("link");
+      preloadLink.rel = "preload";
+      preloadLink.as = "style";
+      preloadLink.href = "https://api.razorpay.com/v1/checkout/public?traffic_env=production";
+      document.head.appendChild(preloadLink);
+
+      // Add stylesheet
+      const styleLink = document.createElement("link");
+      styleLink.rel = "stylesheet";
+      styleLink.href = "https://api.razorpay.com/v1/checkout/public?traffic_env=production";
+      document.head.appendChild(styleLink);
+
+      // Load Razorpay script
       const script = document.createElement("script");
       script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      script.crossOrigin = "anonymous";
       script.onload = () => {
+        console.log("Razorpay SDK loaded successfully");
         resolve(true);
       };
-      script.onerror = () => {
+      script.onerror = (error) => {
+        console.error("Error loading Razorpay SDK:", error);
         resolve(false);
       };
       document.body.appendChild(script);
@@ -73,7 +91,7 @@ const Payment = () => {
       if (!res) {
         toast({ 
           title: "Error", 
-          description: "Razorpay SDK failed to load" 
+          description: "Razorpay SDK failed to load. Please refresh the page and try again." 
         });
         return;
       }
@@ -83,13 +101,22 @@ const Payment = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Accept": "application/json",
         },
+        credentials: "include", // Include credentials for cross-origin requests
         body: JSON.stringify({
           amount: 1, // Amount in rupees (₹1)
         }),
       });
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Create order error:", errorData);
+        throw new Error(errorData.error || "Failed to create order");
+      }
+
       const order = await response.json();
+      console.log("Order created:", order);
 
       const options = {
         key: "rzp_test_Pts9yxxuweuA1u",
@@ -99,59 +126,81 @@ const Payment = () => {
         description: "Medical Consultation Payment",
         order_id: order.id,
         handler: async function (response) {
-          // Verify payment
-          const verifyResponse = await fetch("https://vitareach-backend.onrender.com/verify", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-            }),
-          });
+          console.log("Payment response:", response);
+          
+          try {
+            // Verify payment
+            const verifyResponse = await fetch("https://vitareach-backend.onrender.com/verify", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+              },
+              credentials: "include", // Include credentials for cross-origin requests
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              }),
+            });
 
-          const verifyData = await verifyResponse.json();
+            if (!verifyResponse.ok) {
+              const errorData = await verifyResponse.json();
+              console.error("Verify payment error:", errorData);
+              throw new Error(errorData.error || "Payment verification failed");
+            }
 
-          if (verifyData.status === "success") {
-            toast({ title: "Payment Successful" });
-            
-            if (appointmentData) {
-              setIsBookingAppointment(true);
-              try {
-                const formattedData = {
-                  doctor_username: appointmentData.doctor_username,
-                  doctor_name: appointmentData.doctor_name,
-                  appointment_date: appointmentData.appointment_date,
-                  appointment_time: appointmentData.appointment_time,
-                  specialty: appointmentData.specialty,
-                  symptoms: appointmentData.symptoms
-                };
+            const verifyData = await verifyResponse.json();
+            console.log("Verify payment response:", verifyData);
 
-                const response = await appointmentsApi.createAppointment(formattedData);
-                console.log("Appointment created successfully:", response);
-                
-                toast({ 
-                  title: "Appointment Booked",
-                  description: "Your appointment has been confirmed."
-                });
-                setIsSuccess(true);
-              } catch (error) {
-                console.error("Appointment booking error:", error);
-                toast({ 
-                  title: "Booking Failed", 
-                  description: error.message || "Could not create appointment. Please try again later."
-                });
-                setTimeout(() => navigate("/patient-dashboard"), 2000);
+            if (verifyData.status === "success") {
+              toast({ 
+                title: "Payment Successful",
+                description: "Your payment has been processed successfully."
+              });
+              
+              if (appointmentData) {
+                setIsBookingAppointment(true);
+                try {
+                  const formattedData = {
+                    doctor_username: appointmentData.doctor_username,
+                    doctor_name: appointmentData.doctor_name,
+                    appointment_date: appointmentData.appointment_date,
+                    appointment_time: appointmentData.appointment_time,
+                    specialty: appointmentData.specialty,
+                    symptoms: appointmentData.symptoms
+                  };
+
+                  const response = await appointmentsApi.createAppointment(formattedData);
+                  console.log("Appointment created successfully:", response);
+                  
+                  toast({ 
+                    title: "Appointment Booked",
+                    description: "Your appointment has been confirmed."
+                  });
+                  setIsSuccess(true);
+                } catch (error) {
+                  console.error("Appointment booking error:", error);
+                  toast({ 
+                    title: "Booking Failed", 
+                    description: error.message || "Could not create appointment. Please try again later."
+                  });
+                  setTimeout(() => navigate("/patient-dashboard"), 2000);
+                }
+              } else {
+                navigate("/consultation", { state: { formData } });
               }
             } else {
-              navigate("/consultation", { state: { formData } });
+              toast({ 
+                title: "Payment Verification Failed",
+                description: "Please try again or contact support."
+              });
             }
-          } else {
+          } catch (error) {
+            console.error("Payment verification error:", error);
             toast({ 
               title: "Payment Verification Failed",
-              description: "Please try again or contact support."
+              description: error.message || "Please try again or contact support."
             });
           }
         },
@@ -162,6 +211,15 @@ const Payment = () => {
         theme: {
           color: "#2563eb",
         },
+        modal: {
+          ondismiss: function() {
+            console.log("Payment modal dismissed");
+            toast({
+              title: "Payment Cancelled",
+              description: "You can try again when you're ready."
+            });
+          }
+        }
       };
 
       const paymentObject = new window.Razorpay(options);
@@ -170,7 +228,7 @@ const Payment = () => {
       console.error("Payment error:", error);
       toast({ 
         title: "Payment Failed",
-        description: "There was an error processing your payment."
+        description: error.message || "There was an error processing your payment."
       });
     } finally {
       setIsProcessing(false);
