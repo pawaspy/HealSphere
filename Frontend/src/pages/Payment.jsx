@@ -4,10 +4,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, CreditCard, Lock, Smartphone } from "lucide-react";
+import { Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { appointmentsApi } from "@/utils/api";
@@ -24,13 +21,6 @@ const Payment = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isBookingAppointment, setIsBookingAppointment] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [paymentTab, setPaymentTab] = useState("card");
-  const [paymentData, setPaymentData] = useState({
-    cardNumber: "",
-    cardName: "",
-    cardExpiry: "",
-    cardCvc: ""
-  });
   
   // Check authentication
   useEffect(() => {
@@ -59,156 +49,130 @@ const Payment = () => {
       navigate("/");
     }
   }, [formData, appointmentData, navigate]);
-  
-  // Handle form input changes
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setPaymentData(prev => ({ ...prev, [name]: value }));
+
+  // Initialize Razorpay
+  const initializeRazorpay = () => {
+    return new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => {
+        resolve(true);
+      };
+      script.onerror = () => {
+        resolve(false);
+      };
+      document.body.appendChild(script);
+    });
   };
-  
-  // Handle submit for payment and appointment creation
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+
+  // Create order and initiate payment
+  const handlePayment = async () => {
     setIsProcessing(true);
-    
     try {
-      // Simulate payment processing
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      toast({ title: "Payment Successful" });
-      
-      if (appointmentData) {
-        setIsBookingAppointment(true);
-        
-        try {
-          // Debug info
-          console.log("Token:", localStorage.getItem('token'));
-          console.log("User role:", localStorage.getItem('userRole'));
-          console.log("Username:", localStorage.getItem('username'));
-          
-          const formattedData = {
-            doctor_username: appointmentData.doctor_username,
-            doctor_name: appointmentData.doctor_name,
-            appointment_date: appointmentData.appointment_date,
-            appointment_time: appointmentData.appointment_time,
-            specialty: appointmentData.specialty,
-            symptoms: appointmentData.symptoms
-          };
-          
-          console.log("Booking appointment with data:", formattedData);
-          
-          // Attempt to use appointmentsApi first
-          try {
-            console.log("Using appointmentsApi.createAppointment...");
-            const response = await appointmentsApi.createAppointment(formattedData);
-            
-            console.log("Appointment created successfully:", response);
-            
-            toast({ 
-              title: "Appointment Booked",
-              description: "Your appointment has been confirmed."
-            });
-            setIsSuccess(true);
-          } catch (apiError) {
-            // If the API utility fails, try direct fetch as fallback
-            console.log("API utility failed, trying direct fetch...");
-            const token = localStorage.getItem('token');
-            
-            // Use URL formats without trailing slashes
-            const urls = ['/appointments', '/api/appointments', 'http://localhost:3000/appointments'];
-            let success = false;
-            
-            for (const url of urls) {
-              try {
-                console.log(`Trying direct fetch to ${url}...`);
-                const directResponse = await fetch(url, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                    'X-Username': localStorage.getItem('username'),
-                    'X-Role': localStorage.getItem('userRole')
-                  },
-                  body: JSON.stringify(formattedData)
-                });
-                
-                console.log(`Direct response from ${url}:`, directResponse.status);
-                
-                if (directResponse.ok) {
-                  success = true;
-                  toast({ 
-                    title: "Appointment Booked",
-                    description: "Your appointment has been confirmed (direct method)."
-                  });
-                  setIsSuccess(true);
-                  break;
-                }
-              } catch (directError) {
-                console.error(`Error with ${url}:`, directError);
-              }
-            }
-            
-            // If both approaches failed, show error
-            if (!success) {
-              // Try one last approach - using the test endpoint
-              try {
-                console.log("Trying test appointment endpoint as last resort...");
-                const testResponse = await fetch('/appointments-test', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                    'X-Username': localStorage.getItem('username'),
-                    'X-Role': localStorage.getItem('userRole')
-                  },
-                  body: JSON.stringify(formattedData)
-                });
-                
-                if (testResponse.ok) {
-                  const testData = await testResponse.json();
-                  console.log("Test appointment response:", testData);
-                  
-                  toast({ 
-                    title: "Test Appointment Logged", 
-                    description: "Your appointment was recorded in test mode."
-                  });
-                  setIsSuccess(true);
-                  return;
-                } else {
-                  console.log("Test appointment failed with status:", testResponse.status);
-                }
-              } catch (testError) {
-                console.error("Test appointment error:", testError);
-              }
-              
-              throw apiError;
-            }
-          }
-        } catch (error) {
-          console.error("Appointment booking error:", error);
-          toast({ 
-            title: "Booking Failed", 
-            description: error.message || "Could not create appointment. Please try again later."
-          });
-          setTimeout(() => navigate("/patient-dashboard"), 2000);
-        }
-      } else {
-        // Handle consultation flow
-        try {
-          console.log("Navigating to consultation with form data:", formData);
-          navigate("/consultation", { state: { formData } });
-        } catch (error) {
-          console.error("Consultation navigation error:", error);
-          toast({ 
-            title: "Navigation Failed", 
-            description: "Could not proceed to consultation"
-          });
-          setIsProcessing(false);
-        }
+      const res = await initializeRazorpay();
+      if (!res) {
+        toast({ 
+          title: "Error", 
+          description: "Razorpay SDK failed to load" 
+        });
+        return;
       }
+
+      // Create order
+      const response = await fetch("http://localhost:5000/create-order", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount: 1, // Amount in rupees (₹1)
+        }),
+      });
+
+      const order = await response.json();
+
+      const options = {
+        key: "rzp_test_Pts9yxxuweuA1u",
+        amount: order.amount,
+        currency: "INR",
+        name: "VitaReach",
+        description: "Medical Consultation Payment",
+        order_id: order.id,
+        handler: async function (response) {
+          // Verify payment
+          const verifyResponse = await fetch("http://localhost:5000/verify", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            }),
+          });
+
+          const verifyData = await verifyResponse.json();
+
+          if (verifyData.status === "success") {
+            toast({ title: "Payment Successful" });
+            
+            if (appointmentData) {
+              setIsBookingAppointment(true);
+              try {
+                const formattedData = {
+                  doctor_username: appointmentData.doctor_username,
+                  doctor_name: appointmentData.doctor_name,
+                  appointment_date: appointmentData.appointment_date,
+                  appointment_time: appointmentData.appointment_time,
+                  specialty: appointmentData.specialty,
+                  symptoms: appointmentData.symptoms
+                };
+
+                const response = await appointmentsApi.createAppointment(formattedData);
+                console.log("Appointment created successfully:", response);
+                
+                toast({ 
+                  title: "Appointment Booked",
+                  description: "Your appointment has been confirmed."
+                });
+                setIsSuccess(true);
+              } catch (error) {
+                console.error("Appointment booking error:", error);
+                toast({ 
+                  title: "Booking Failed", 
+                  description: error.message || "Could not create appointment. Please try again later."
+                });
+                setTimeout(() => navigate("/patient-dashboard"), 2000);
+              }
+            } else {
+              navigate("/consultation", { state: { formData } });
+            }
+          } else {
+            toast({ 
+              title: "Payment Verification Failed",
+              description: "Please try again or contact support."
+            });
+          }
+        },
+        prefill: {
+          name: localStorage.getItem('username') || "",
+          email: localStorage.getItem('email') || "",
+        },
+        theme: {
+          color: "#2563eb",
+        },
+      };
+
+      const paymentObject = new window.Razorpay(options);
+      paymentObject.open();
     } catch (error) {
       console.error("Payment error:", error);
-      toast({ title: "Payment Failed" });
+      toast({ 
+        title: "Payment Failed",
+        description: "There was an error processing your payment."
+      });
+    } finally {
       setIsProcessing(false);
     }
   };
@@ -232,145 +196,120 @@ const Payment = () => {
     );
   }
   
-  // Payment price
-  const price = "₹1";
+  // Payment prices
+  const originalPrice = "₹1000";
+  const discountedPrice = "₹1";
   
   // Main payment UI
   return (
     <div>
       <Navbar />
       <main className="container mx-auto p-6">
-        <h1 className="text-2xl font-bold mb-6">Payment</h1>
-        
-        <div className="grid md:grid-cols-3 gap-6">
-          <div className="md:col-span-2">
-            <Card>
-              <CardContent className="p-6">
-                <Tabs defaultValue="card" value={paymentTab} onValueChange={setPaymentTab}>
-                  <TabsList className="grid grid-cols-2 mb-6">
-                    <TabsTrigger value="card">Credit/Debit Card</TabsTrigger>
-                    <TabsTrigger value="upi">UPI Payment</TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="card">
-                    <form onSubmit={handleSubmit}>
-                      <div className="space-y-4">
-                        <div>
-                          <Label htmlFor="cardNumber">Card Number</Label>
-                          <Input 
-                            id="cardNumber"
-                            name="cardNumber"
-                            placeholder="1234 5678 9012 3456"
-                            value={paymentData.cardNumber}
-                            onChange={handleChange}
-                            required
-                          />
-                        </div>
-                        
-                        <div>
-                          <Label htmlFor="cardName">Name on Card</Label>
-                          <Input 
-                            id="cardName"
-                            name="cardName"
-                            placeholder="John Smith"
-                            value={paymentData.cardName}
-                            onChange={handleChange}
-                            required
-                          />
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="cardExpiry">Expiry Date</Label>
-                            <Input 
-                              id="cardExpiry"
-                              name="cardExpiry"
-                              placeholder="MM/YY"
-                              value={paymentData.cardExpiry}
-                              onChange={handleChange}
-                              required
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="cardCvc">CVV</Label>
-                            <Input 
-                              id="cardCvc"
-                              name="cardCvc"
-                              placeholder="123"
-                              value={paymentData.cardCvc}
-                              onChange={handleChange}
-                              required
-                            />
-                          </div>
-                        </div>
-                        
-                        <Button 
-                          type="submit" 
-                          className="w-full"
-                          disabled={isProcessing || isBookingAppointment}
-                        >
-                          {isProcessing ? "Processing..." : `Pay ${price}`}
-                        </Button>
-                      </div>
-                    </form>
-                  </TabsContent>
-                  
-                  <TabsContent value="upi">
-                    <div className="space-y-4">
-                      <div className="flex justify-center py-4">
-                        <div className="bg-gray-100 p-4 rounded-lg w-48 h-48 flex items-center justify-center">
-                          QR Code
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor="upiId">UPI ID</Label>
-                        <Input 
-                          id="upiId" 
-                          name="upiId"
-                          value="payment@vitareach"
-                          readOnly
-                        />
-                      </div>
-                      
-                      <Button 
-                        className="w-full" 
-                        onClick={handleSubmit} 
-                        disabled={isProcessing || isBookingAppointment}
-                      >
-                        {isProcessing ? "Processing..." : 
-                         isBookingAppointment ? "Creating Appointment..." :
-                         `Pay via UPI (${price})`}
-                      </Button>
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold mb-2">Payment</h1>
+            <p className="text-muted-foreground">Complete your payment to book the appointment</p>
           </div>
           
-          <div>
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="font-bold text-lg mb-4">Order Summary</h3>
-                
-                {appointmentData && (
-                  <div className="mb-4">
-                    <p className="mb-2"><strong>Doctor:</strong> {appointmentData.doctor_name}</p>
-                    <p className="mb-2"><strong>Specialty:</strong> {appointmentData.specialty}</p>
-                    <p className="mb-2"><strong>Date:</strong> {appointmentData.appointment_date}</p>
-                    <p className="mb-2"><strong>Time:</strong> {appointmentData.appointment_time}</p>
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="md:col-span-2">
+              <Card className="border-2 h-full shadow-lg hover:shadow-xl transition-shadow duration-300">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-6 pb-4 border-b">
+                    <h3 className="font-bold text-2xl text-primary">RazorPay</h3>
+                    <div className="flex items-center space-x-2">
+                      <Lock className="h-5 w-5 text-primary" />
+                      <span className="text-sm font-medium text-muted-foreground">Secure Payment</span>
+                    </div>
                   </div>
-                )}
-                
-                <div className="border-t pt-4 mt-4">
-                  <div className="flex justify-between font-bold">
-                    <span>Total</span>
-                    <span>{price}</span>
+                  
+                  <div className="space-y-6">
+                    <div className="bg-muted/50 p-4 rounded-lg">
+                      <p className="text-sm text-center text-muted-foreground leading-relaxed">
+                        India's leading payment gateway for secure transactions. 
+                        Trusted by millions of users for safe and seamless payments.
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-center space-x-2 text-sm text-muted-foreground">
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        </svg>
+                        <span>256-bit SSL Security</span>
+                      </div>
+                      
+                      <div className="flex items-center justify-center space-x-2 text-sm text-muted-foreground">
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M20 6L9 17l-5-5" />
+                        </svg>
+                        <span>PCI DSS Compliant</span>
+                      </div>
+                    </div>
+                    
+                    <Button 
+                      onClick={handlePayment}
+                      className="w-full h-12 text-lg font-semibold bg-primary hover:bg-primary/90 transition-colors duration-300"
+                      disabled={isProcessing || isBookingAppointment}
+                    >
+                      {isProcessing ? (
+                        <div className="flex items-center space-x-2">
+                          <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          <span>Processing...</span>
+                        </div>
+                      ) : isBookingAppointment ? (
+                        <div className="flex items-center space-x-2">
+                          <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          <span>Creating Appointment...</span>
+                        </div>
+                      ) : (
+                        `Pay ${discountedPrice} with RazorPay`
+                      )}
+                    </Button>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
+            
+            <div>
+              <Card className="border-2">
+                <CardContent className="p-6">
+                  <h3 className="font-bold text-xl mb-6">Order Summary</h3>
+                  
+                  {appointmentData && (
+                    <div className="mb-6 space-y-3">
+                      <p className="mb-2"><strong>Doctor:</strong> {appointmentData.doctor_name}</p>
+                      <p className="mb-2"><strong>Specialty:</strong> {appointmentData.specialty}</p>
+                      <p className="mb-2"><strong>Date:</strong> {appointmentData.appointment_date}</p>
+                      <p className="mb-2"><strong>Time:</strong> {appointmentData.appointment_time}</p>
+                    </div>
+                  )}
+                  
+                  <div className="border-t pt-4 mt-4">
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Original Price</span>
+                        <span className="line-through text-muted-foreground">{originalPrice}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Discount</span>
+                        <span className="text-green-600 font-medium">-₹999</span>
+                      </div>
+                      <div className="flex justify-between font-bold pt-3 border-t">
+                        <span>Total Amount</span>
+                        <span className="text-primary">{discountedPrice}</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
       </main>
