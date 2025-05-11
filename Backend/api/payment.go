@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"math/big"
 	"net/http"
 
@@ -50,11 +51,17 @@ type VerifyPaymentRequest struct {
 
 // createOrder handles the creation of a new Razorpay order
 func (server *Server) createOrder(ctx *gin.Context) {
+	fmt.Println("====== CREATE ORDER ENDPOINT CALLED ======")
+
 	var req CreateOrderRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
+		fmt.Printf("Error binding JSON: %v\n", err)
 		ctx.JSON(http.StatusBadRequest, errorResponse(err))
 		return
 	}
+
+	fmt.Printf("Received create order request: %+v\n", req)
+	fmt.Printf("Using Razorpay Key ID: %s\n", server.config.RazorpayKeyID)
 
 	// Initialize Razorpay client
 	client := razorpay.NewClient(server.config.RazorpayKeyID, server.config.RazorpayKeySecret)
@@ -66,12 +73,17 @@ func (server *Server) createOrder(ctx *gin.Context) {
 		"receipt":  "order_rcptid_" + generateRandomString(10),
 	}
 
+	fmt.Printf("Creating order with data: %+v\n", data)
+
 	// Create order
 	order, err := client.Order.Create(data, nil)
 	if err != nil {
+		fmt.Printf("Error creating order: %v\n", err)
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 		return
 	}
+
+	fmt.Printf("Order created successfully: %+v\n", order)
 
 	// Convert order to response
 	response := CreateOrderResponse{
@@ -88,11 +100,16 @@ func (server *Server) createOrder(ctx *gin.Context) {
 
 // verifyPayment handles the verification of a Razorpay payment
 func (server *Server) verifyPayment(ctx *gin.Context) {
+	fmt.Println("====== VERIFY PAYMENT ENDPOINT CALLED ======")
+
 	var req VerifyPaymentRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
+		fmt.Printf("Error binding JSON: %v\n", err)
 		ctx.JSON(http.StatusBadRequest, errorResponse(err))
 		return
 	}
+
+	fmt.Printf("Received verify payment request: %+v\n", req)
 
 	// Create signature
 	payload := req.RazorpayOrderID + "|" + req.RazorpayPaymentID
@@ -100,10 +117,15 @@ func (server *Server) verifyPayment(ctx *gin.Context) {
 	signature.Write([]byte(payload))
 	generatedSignature := hex.EncodeToString(signature.Sum(nil))
 
+	fmt.Printf("Generated signature: %s\n", generatedSignature)
+	fmt.Printf("Received signature: %s\n", req.RazorpaySignature)
+
 	// Verify signature
 	if generatedSignature == req.RazorpaySignature {
+		fmt.Println("Payment verification successful")
 		ctx.JSON(http.StatusOK, gin.H{"status": "success"})
 	} else {
+		fmt.Println("Payment verification failed")
 		ctx.JSON(http.StatusOK, gin.H{"status": "failure"})
 	}
 }

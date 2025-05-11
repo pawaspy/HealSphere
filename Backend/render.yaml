@@ -22,3 +22,7 @@ services:
         sync: false # This should be set in the Render dashboard as a secret
       - key: GEMINI_API_KEY
         sync: false # This should be set in the Render dashboard as a secret
+      - key: RAZORPAY_KEY_ID
+        sync: false # This should be set in the Render dashboard as a secret
+      - key: RAZORPAY_KEY_SECRET
+        sync: false # This should be set in the Render dashboard as a secret
