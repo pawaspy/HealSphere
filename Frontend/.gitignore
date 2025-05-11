@@ -9,6 +9,7 @@ lerna-debug.log*
 
 node_modules
 convert-to-jsx.js
+convert-tsx-to-jsx.js
 clean-tsx-files.js
 find-ts-syntax.js
 dist
