@@ -48,6 +48,7 @@ func main() {
 			HTTPAddress:       httpAddress,
 			TokenSymmetricKey: os.Getenv("TOKEN_SYMMETRIC_KEY"),
 			TokenDuration:     tokenDuration,
+			GeminiAPIKey:      os.Getenv("GEMINI_API_KEY"),
 		}
 		
 		log.Info().
