@@ -4,7 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Send, Bot } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { API_BASE_URL } from "@/utils/api";
+
+// Update this to use the correct API_BASE_URL
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://vitareach-backend.onrender.com';
 
 const initialMessages = [
   {

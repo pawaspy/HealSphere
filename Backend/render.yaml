@@ -19,4 +19,6 @@ services:
       - key: TOKEN_SYMMETRIC_KEY
         sync: false # This should be set in the Render dashboard as a secret
       - key: DB_SOURCE
-        sync: false # This should be set in the Render dashboard as a secret 
+        sync: false # This should be set in the Render dashboard as a secret
+      - key: GEMINI_API_KEY
+        sync: false # This should be set in the Render dashboard as a secret
