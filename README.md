@@ -155,23 +155,7 @@ sqlc generate
 
 ```bash
 migrate create -ext sql -dir db/migration -seq add_new_feature
-```
-
-## Testing
-
-### Backend Tests
-
-```bash
-cd Backend
-go test -v ./...
-```
-
-### Frontend Tests
-
-```bash
-cd Frontend
-npm test
-```
+```
 
 ## Cross-Origin Resource Sharing (CORS)
 
