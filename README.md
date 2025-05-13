@@ -10,7 +10,7 @@ A modern telehealth platform that connects patients with doctors for virtual con
 │   ├── db/              # Database migrations and queries
 │   │   ├── migration/   # SQL migrations
 │   │   └── sqlc/        # SQLC-generated Go code
-│   ├── token/           # JWT token functionality
+│   ├── token/           # Paseto token functionality
 │   └── util/            # Utility functions
 └── Frontend/            # React frontend
     ├── public/          # Static assets
